@@ -18,16 +18,6 @@ const stages: StageDefinition[] = [
   times10,
 ];
 
-/** Returns all registered stages. */
-export function getAllStages(): StageDefinition[] {
-  return stages;
-}
-
-/** Returns the stage with the given id, or undefined if not found. */
-export function getStageById(id: string): StageDefinition | undefined {
-  return stages.find((s) => s.id === id);
-}
-
 /** Returns stages sorted by difficulty (ascending), then by name. */
 export function getSortedStages(): StageDefinition[] {
   return [...stages].sort((a, b) => {

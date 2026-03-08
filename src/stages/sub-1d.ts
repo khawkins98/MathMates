@@ -20,21 +20,24 @@ export const sub1d: StageDefinition = {
 
     const target = TARGETS[missionIndex % TARGETS.length];
 
-    // Generate correct expressions: a-b where a,b in [1,9], a-b === target, a >= b
-    const correctList: string[] = [];
-    let attempts = 0;
-    while (correctList.length < correctCount && attempts < 1000) {
-      const b = randomInt(1, 9 - target);
+    // Enumerate all valid pairs a-b = target where a,b in [1,9], a >= b
+    const uniqueCorrect: string[] = [];
+    for (let b = 1; b <= 9 - target; b++) {
       const a = target + b;
-      if (a >= 1 && a <= 9 && b >= 1 && b <= 9 && a >= b) {
-        correctList.push(`${a}-${b}`);
+      if (a >= 1 && a <= 9) {
+        uniqueCorrect.push(`${a}-${b}`);
       }
-      attempts++;
+    }
+
+    // Fill by cycling through unique expressions
+    const correctList: string[] = [];
+    for (let i = 0; i < correctCount; i++) {
+      correctList.push(uniqueCorrect[i % uniqueCorrect.length]);
     }
 
     // Generate incorrect expressions: a-b where a >= b, a,b in [1,9], a-b !== target
     const incorrectList: string[] = [];
-    attempts = 0;
+    let attempts = 0;
     while (incorrectList.length < incorrectCount && attempts < 1000) {
       const a = randomInt(2, 9);
       const b = randomInt(1, a);

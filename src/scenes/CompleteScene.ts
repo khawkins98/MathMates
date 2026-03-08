@@ -20,11 +20,19 @@ interface CompleteData {
   parTime: number;
 }
 
+interface StarDelay {
+  star: Container;
+  delay: number;
+  started: boolean;
+}
+
 export class CompleteScene extends Scene {
   private manager: SceneManager;
   private data: CompleteData | null = null;
   private animations: AnimationSystem;
   private stars: Container[] = [];
+  private starDelays: StarDelay[] = [];
+  private sceneElapsed = 0;
 
   constructor(manager: SceneManager) {
     super();
@@ -38,6 +46,8 @@ export class CompleteScene extends Scene {
 
     this.animations.clear();
     this.stars = [];
+    this.starDelays = [];
+    this.sceneElapsed = 0;
 
     // Save progress
     this.manager.save.completeMission(
@@ -160,26 +170,8 @@ export class CompleteScene extends Scene {
       this.root.addChild(star);
       this.stars.push(star);
 
-      // Animate each star with staggered delay using the animation system
-      const delay = i * 300;
-      setTimeout(() => {
-        this.animations.animate(
-          star.scale as unknown as Record<string, number>,
-          'x',
-          0,
-          1,
-          400,
-          Easing.bounce,
-        );
-        this.animations.animate(
-          star.scale as unknown as Record<string, number>,
-          'y',
-          0,
-          1,
-          400,
-          Easing.bounce,
-        );
-      }, delay);
+      // Stagger star animations using elapsed time in update()
+      this.starDelays.push({ star, delay: i * 300, started: false });
     }
 
     // Buttons
@@ -218,13 +210,40 @@ export class CompleteScene extends Scene {
   }
 
   update(dt: number): void {
+    this.sceneElapsed += dt;
+
+    // Trigger staggered star animations based on elapsed time
+    for (const sd of this.starDelays) {
+      if (!sd.started && this.sceneElapsed >= sd.delay) {
+        sd.started = true;
+        this.animations.animate(
+          sd.star.scale as unknown as Record<string, number>,
+          'x',
+          0,
+          1,
+          400,
+          Easing.bounce,
+        );
+        this.animations.animate(
+          sd.star.scale as unknown as Record<string, number>,
+          'y',
+          0,
+          1,
+          400,
+          Easing.bounce,
+        );
+      }
+    }
+
     this.animations.update(dt);
   }
 
   exit(): void {
-    this.root.removeChildren();
+    this.destroyChildren();
     this.animations.clear();
     this.stars = [];
+    this.starDelays = [];
+    this.sceneElapsed = 0;
     this.data = null;
   }
 }

@@ -21,6 +21,7 @@ export class InputManager {
 
   constructor() {
     window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
       if (!this.enabled) return;
       const action = KEY_MAP[e.code];
       if (action) {
@@ -28,6 +29,11 @@ export class InputManager {
         this.queue.push(action);
       }
     });
+  }
+
+  /** Remove and return the first queued action, or undefined if empty. */
+  shift(): InputAction | undefined {
+    return this.queue.shift();
   }
 
   drain(): InputAction[] {

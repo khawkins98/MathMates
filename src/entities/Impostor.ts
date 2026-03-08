@@ -20,33 +20,32 @@ export class Impostor extends Container {
   private lifespanTimer = 0;
   private flickerElapsed = 0;
 
-  constructor() {
+  constructor(playerCol: number, playerRow: number) {
     super();
-    this.spawnAtEdge();
+    this.spawnAtEdge(playerCol, playerRow);
     this.alpha = FLICKER_MIN;
   }
 
-  private spawnAtEdge(): void {
-    // Pick a random edge cell
-    const edge = randomInt(0, 3);
-    switch (edge) {
-      case 0: // top
-        this._gridCol = randomInt(0, GRID_COLS - 1);
-        this._gridRow = 0;
-        break;
-      case 1: // bottom
-        this._gridCol = randomInt(0, GRID_COLS - 1);
-        this._gridRow = GRID_ROWS - 1;
-        break;
-      case 2: // left
-        this._gridCol = 0;
-        this._gridRow = randomInt(0, GRID_ROWS - 1);
-        break;
-      case 3: // right
-        this._gridCol = GRID_COLS - 1;
-        this._gridRow = randomInt(0, GRID_ROWS - 1);
-        break;
+  private spawnAtEdge(playerCol: number, playerRow: number): void {
+    // Build list of all edge cells
+    const edgeCells: Array<{ col: number; row: number }> = [];
+    for (let c = 0; c < GRID_COLS; c++) {
+      edgeCells.push({ col: c, row: 0 });
+      edgeCells.push({ col: c, row: GRID_ROWS - 1 });
     }
+    for (let r = 1; r < GRID_ROWS - 1; r++) {
+      edgeCells.push({ col: 0, row: r });
+      edgeCells.push({ col: GRID_COLS - 1, row: r });
+    }
+
+    // Exclude the player's cell
+    const candidates = edgeCells.filter(
+      (c) => c.col !== playerCol || c.row !== playerRow,
+    );
+
+    const chosen = pickRandom(candidates);
+    this._gridCol = chosen.col;
+    this._gridRow = chosen.row;
 
     this.updatePixelPosition();
   }

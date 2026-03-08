@@ -126,7 +126,7 @@ export class SettingsScene extends Scene {
   }
 
   exit(): void {
-    this.root.removeChildren();
+    this.destroyChildren();
     this.soundToggle = null;
     this.impostorToggle = null;
     this.unlockToggle = null;

@@ -1,5 +1,6 @@
 import { Container, Graphics } from 'pixi.js';
 import { COLORS } from '@/constants';
+import { darken } from '@/utils';
 
 /** Available crewmate color palettes. */
 export const CREW_COLORS = [
@@ -78,10 +79,3 @@ export function createMiniCrewmate(color: number = DEFAULT_COLOR): Container {
   return container;
 }
 
-/** Darkens a hex color by a factor (0..1). */
-function darken(hex: number, amount: number): number {
-  const r = Math.round(((hex >> 16) & 0xff) * (1 - amount));
-  const g = Math.round(((hex >> 8) & 0xff) * (1 - amount));
-  const b = Math.round((hex & 0xff) * (1 - amount));
-  return (r << 16) | (g << 8) | b;
-}

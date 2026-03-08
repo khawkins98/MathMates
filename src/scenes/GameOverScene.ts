@@ -117,7 +117,7 @@ export class GameOverScene extends Scene {
   }
 
   exit(): void {
-    this.root.removeChildren();
+    this.destroyChildren();
     this.gameOverText = null;
     this.ghostCrewmate = null;
     this.data = null;

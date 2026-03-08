@@ -7,9 +7,6 @@ export const Easing = {
   easeOutQuad(t: number): number {
     return t * (2 - t);
   },
-  easeInOutCubic(t: number): number {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  },
   bounce(t: number): number {
     const n1 = 7.5625;
     const d1 = 2.75;

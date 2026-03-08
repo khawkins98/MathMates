@@ -13,8 +13,14 @@ async function init() {
     resolution: 1,
   });
 
-  const container = document.getElementById('app')!;
+  const container = document.getElementById('app');
+  if (!container) {
+    throw new Error('Missing #app element in document');
+  }
   container.appendChild(app.canvas);
+
+  // Ensure crisp pixel rendering when CSS-scaled
+  app.canvas.style.imageRendering = 'pixelated';
 
   // Viewport scaling with letterboxing
   function resize() {

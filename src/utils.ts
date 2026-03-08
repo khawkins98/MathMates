@@ -11,16 +11,16 @@ export function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export function randomFactorPair(n: number): [number, number] {
-  const factors: [number, number][] = [];
-  for (let i = 1; i <= Math.sqrt(n); i++) {
-    if (n % i === 0) {
-      factors.push([i, n / i]);
-    }
+export function pickRandom<T>(arr: T[]): T {
+  if (arr.length === 0) {
+    throw new Error('pickRandom called on empty array');
   }
-  return factors[Math.floor(Math.random() * factors.length)];
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+export function darken(hex: number, amount: number): number {
+  const r = Math.max(0, Math.round(((hex >> 16) & 0xff) * (1 - amount)));
+  const g = Math.max(0, Math.round(((hex >> 8) & 0xff) * (1 - amount)));
+  const b = Math.max(0, Math.round((hex & 0xff) * (1 - amount)));
+  return (r << 16) | (g << 8) | b;
 }

@@ -217,7 +217,7 @@ export class SelectScene extends Scene {
   }
 
   exit(): void {
-    this.root.removeChildren();
+    this.destroyChildren();
     this.cards = [];
     this.detailPanel = null;
     this.launchButton = null;

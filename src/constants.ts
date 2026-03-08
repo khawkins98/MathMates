@@ -36,9 +36,6 @@ export const TRANSITION_DURATION = 500;
 export const ELIMINATION_DURATION = 1500;
 export const COUNTDOWN_STEP_MS = 1000;
 
-// Player movement
-export const MOVE_DURATION = 100; // ms for grid-snap movement
-
 // Impostor
 export const IMPOSTOR_MOVE_INTERVAL = 1500; // ms between moves
 export const IMPOSTOR_LIFESPAN = 10000; // ms before despawn

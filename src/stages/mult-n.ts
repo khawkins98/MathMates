@@ -1,6 +1,5 @@
 import type { StageDefinition, GridData } from '../types';
 import { shuffle, randomInt } from '../utils';
-import { GRID_COLS, GRID_ROWS } from '../constants';
 
 interface MultiplesStageOpts {
   name: string;
@@ -32,7 +31,8 @@ export function createMultiplesStage(
       const incorrectCount = totalCells - correctCount;
 
       // Scale range with mission index for progressive difficulty
-      const rangeMax = (missionIndex + 2) * n * 3;
+      // Ensure enough unique multiples exist: need at least correctCount multiples of n
+      const rangeMax = Math.max((missionIndex + 2) * n * 3, correctCount * n);
       const rangeMin = 1;
 
       // Generate unique correct values (multiples of n)

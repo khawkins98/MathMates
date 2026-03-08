@@ -34,41 +34,28 @@ export function createTimesTableStage(
       const m = missionIndex + 2; // starts at 2, increases each mission
       const targetProduct = n * m;
 
-      // Generate correct expressions: factor pairs that evaluate to targetProduct
-      const correctExprs = new Set<string>();
-      let attempts = 0;
-      while (correctExprs.size < correctCount && attempts < 1000) {
-        // Find factor pairs of targetProduct
-        const a = randomInt(1, Math.min(12, targetProduct));
+      // Enumerate ALL valid factor pairs for targetProduct (both orderings)
+      const uniqueExprs: string[] = [];
+      for (let a = 1; a <= Math.min(12, targetProduct); a++) {
         if (targetProduct % a === 0) {
           const b = targetProduct / a;
           if (b >= 1 && b <= 12) {
-            const expr = `${a}\u00d7${b}`;
-            correctExprs.add(expr);
+            uniqueExprs.push(`${a}\u00d7${b}`);
           }
         }
-        // Also include reversed order
-        if (correctExprs.size < correctCount) {
-          const c = randomInt(1, Math.min(12, targetProduct));
-          if (targetProduct % c === 0) {
-            const d = targetProduct / c;
-            if (d >= 1 && d <= 12) {
-              const expr = `${c}\u00d7${d}`;
-              correctExprs.add(expr);
-            }
-          }
-        }
-        attempts++;
       }
 
-      // Cap correct count to unique expressions to avoid duplicates on grid
-      const correctList = Array.from(correctExprs);
-      const actualCorrectCount = Math.min(correctCount, correctList.length);
-      const actualIncorrectCount = totalCells - actualCorrectCount;
+      // Fill correct list by cycling through available expressions
+      const correctList: string[] = [];
+      for (let i = 0; i < correctCount; i++) {
+        correctList.push(uniqueExprs[i % uniqueExprs.length]);
+      }
+      const actualCorrectCount = correctCount;
+      const actualIncorrectCount = incorrectCount;
 
       // Generate incorrect expressions that do NOT equal targetProduct
       const incorrectList: string[] = [];
-      attempts = 0;
+      let attempts = 0;
       while (incorrectList.length < actualIncorrectCount && attempts < 1000) {
         const a = randomInt(1, 12);
         const b = randomInt(1, 12);

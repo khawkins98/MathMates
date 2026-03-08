@@ -1,3 +1,4 @@
+import { Graphics, Text, TextStyle } from 'pixi.js';
 import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
 import { Grid } from '@/entities/Grid';
@@ -53,6 +54,10 @@ export class GameScene extends Scene {
   private impostorEnabled = false;
   private impostorSpawnTimer = 0;
   private impostorScheduled = false;
+  private wrongMathCount = 0;
+
+  // Pause overlay
+  private pauseOverlay: Graphics | null = null;
 
   // Stage data (kept for navigation)
   private stage: StageDefinition | null = null;
@@ -75,6 +80,8 @@ export class GameScene extends Scene {
     this.impostorSpawnTimer = 0;
     this.impostorScheduled = false;
     this.impostor = null;
+    this.wrongMathCount = 0;
+    this.pauseOverlay = null;
 
     // Generate grid data from the stage definition
     const gridData = stage.generateGrid(missionIndex, GRID_COLS, GRID_ROWS);
@@ -146,10 +153,16 @@ export class GameScene extends Scene {
       this.eliminationOverlay.update(dt);
     }
 
-    if (this.paused || this.eliminationPlaying) {
+    // Process pause/unpause even while paused
+    if (this.paused) {
+      const action = this.manager.input.shift();
+      if (action === 'pause') {
+        this.togglePause();
+      }
       return;
     }
 
+    if (this.eliminationPlaying) return;
     if (!this.playing) return;
 
     // Update player idle bobbing animation
@@ -166,21 +179,25 @@ export class GameScene extends Scene {
       this.updateImpostor(dt);
     }
 
-    // Process input actions
-    const actions = this.manager.input.drain();
-    for (const action of actions) {
+    // Process one input action per frame to prevent teleporting
+    const action = this.manager.input.shift();
+    if (action) {
       this.handleAction(action);
-      // If an action triggered elimination or win, stop processing further actions
-      if (!this.playing || this.eliminationPlaying) break;
     }
   }
 
   exit(): void {
-    // Clean up all display objects
-    this.root.removeChildren();
-
-    // Remove impostor reference
+    // Remove impostor reference before destroying children
     this.removeImpostor();
+
+    // Remove pause overlay if showing
+    if (this.pauseOverlay) {
+      this.pauseOverlay.destroy({ children: true });
+      this.pauseOverlay = null;
+    }
+
+    // Destroy all display objects to free GPU geometry and textures
+    this.destroyChildren();
 
     // Reset state
     this.playing = false;
@@ -188,6 +205,7 @@ export class GameScene extends Scene {
     this.eliminationPlaying = false;
     this.impostorScheduled = false;
     this.impostorSpawnTimer = 0;
+    this.wrongMathCount = 0;
 
     // Temporarily disable input to prevent stale actions carrying over
     this.manager.input.setEnabled(false);
@@ -228,7 +246,7 @@ export class GameScene extends Scene {
         this.toggleSusCurrentCell();
         break;
       case 'pause':
-        this.quitToMenu();
+        this.togglePause();
         break;
     }
   }
@@ -288,6 +306,7 @@ export class GameScene extends Scene {
     } else {
       this.scoring.recordWrong();
       this.lives.loseLife();
+      this.wrongMathCount++;
       this.manager.sound.errorBuzz();
 
       // Update HUD multiplier (reset on wrong answer)
@@ -309,8 +328,57 @@ export class GameScene extends Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // Quit to menu
+  // Pause / quit
   // ---------------------------------------------------------------------------
+
+  private togglePause(): void {
+    this.paused = !this.paused;
+
+    if (this.paused) {
+      // Show pause overlay
+      this.pauseOverlay = new Graphics();
+      this.pauseOverlay.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill({ color: 0x000000, alpha: 0.6 });
+      this.root.addChild(this.pauseOverlay);
+
+      const style = new TextStyle({
+        fontFamily: 'monospace',
+        fontSize: 32,
+        fontWeight: 'bold',
+        fill: COLORS.STAR_WHITE,
+        align: 'center',
+      });
+      const pausedText = new Text({ text: 'PAUSED', style });
+      pausedText.anchor.set(0.5);
+      pausedText.x = GAME_WIDTH / 2;
+      pausedText.y = GAME_HEIGHT / 2 - 30;
+      this.pauseOverlay.addChild(pausedText);
+
+      const hintStyle = new TextStyle({
+        fontFamily: 'monospace',
+        fontSize: 12,
+        fill: COLORS.HULL_GREY,
+        align: 'center',
+      });
+      const hintText = new Text({ text: 'Press ESC to resume', style: hintStyle });
+      hintText.anchor.set(0.5);
+      hintText.x = GAME_WIDTH / 2;
+      hintText.y = GAME_HEIGHT / 2 + 10;
+      this.pauseOverlay.addChild(hintText);
+
+      // Quit button inside pause overlay
+      const quitBtn = new ButtonSprite('Quit Mission', 130, 34, COLORS.CREW_RED);
+      quitBtn.x = GAME_WIDTH / 2 - 65;
+      quitBtn.y = GAME_HEIGHT / 2 + 40;
+      quitBtn.onClick = () => this.quitToMenu();
+      this.pauseOverlay.addChild(quitBtn);
+    } else {
+      // Remove pause overlay
+      if (this.pauseOverlay) {
+        this.pauseOverlay.destroy({ children: true });
+        this.pauseOverlay = null;
+      }
+    }
+  }
 
   private quitToMenu(): void {
     this.playing = false;
@@ -368,12 +436,9 @@ export class GameScene extends Scene {
     // Apply time bonus
     this.scoring.applyTimeBonus(elapsed, this.stage.parTime);
 
-    // Calculate accuracy
+    // Calculate accuracy (only count wrong math answers, not impostor collisions)
     const correctEaten = this.grid.correctEaten;
-    const wrongAnswers = this.grid.correctEaten > 0
-      ? (STARTING_LIVES - this.lives.remaining)
-      : 0;
-    const totalAttempts = correctEaten + wrongAnswers;
+    const totalAttempts = correctEaten + this.wrongMathCount;
     const accuracy = totalAttempts > 0 ? correctEaten / totalAttempts : 1;
 
     // Play completion sound
@@ -430,12 +495,13 @@ export class GameScene extends Scene {
   }
 
   private spawnImpostor(): void {
-    if (!this.grid) return;
+    if (!this.grid || !this.player) return;
 
     this.impostorScheduled = false;
     this.impostorSpawnTimer = 0;
 
-    this.impostor = new Impostor();
+    const { col, row } = this.player.getGridPosition();
+    this.impostor = new Impostor(col, row);
     const impostorSprite = createImpostorSprite();
     impostorSprite.pivot.set(11, 12); // Center the sprite
     this.impostor.addChild(impostorSprite);
@@ -461,6 +527,9 @@ export class GameScene extends Scene {
 
     // Remove the impostor that caught the player
     this.removeImpostor();
+
+    // Schedule next impostor spawn
+    this.scheduleImpostorSpawn();
 
     // Lose a life but do NOT reset the maths streak — impostor collision
     // is a random game event, not a mathematical mistake

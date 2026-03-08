@@ -27,7 +27,8 @@ export class SaveManager {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultSave();
-      const parsed = JSON.parse(raw) as SaveData;
+      const parsed = JSON.parse(raw);
+      if (!this.isValidSave(parsed)) return defaultSave();
       if (parsed.version !== CURRENT_VERSION) {
         return this.migrate(parsed);
       }
@@ -37,13 +38,28 @@ export class SaveManager {
     }
   }
 
-  private migrate(old: SaveData): SaveData {
+  private isValidSave(data: unknown): data is SaveData {
+    if (typeof data !== 'object' || data === null) return false;
+    const d = data as Record<string, unknown>;
+    return (
+      typeof d.version === 'number' &&
+      typeof d.completedMissions === 'object' && d.completedMissions !== null &&
+      typeof d.highScores === 'object' && d.highScores !== null &&
+      typeof d.settings === 'object' && d.settings !== null
+    );
+  }
+
+  private migrate(_old: SaveData): SaveData {
     // v1 is the only version, so just reset
     return defaultSave();
   }
 
   private persist(): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+    } catch {
+      // QuotaExceededError or SecurityError — silently ignore
+    }
   }
 
   completeMission(stageId: string, missionIndex: number, score: number): void {
@@ -71,14 +87,6 @@ export class SaveManager {
 
   getHighScore(stageId: string): number {
     return this.data.highScores[stageId] ?? 0;
-  }
-
-  isUnlocked(difficulty: number): boolean {
-    if (this.data.settings.unlockAll) return true;
-    if (difficulty <= 1) return true;
-    // Check if any stage of the previous difficulty tier is complete
-    // This is checked by the caller with stage data
-    return true; // Default true, actual gating handled by SelectScene
   }
 
   get settings() {

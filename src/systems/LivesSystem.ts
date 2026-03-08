@@ -7,10 +7,6 @@ export class LivesSystem {
     return this._lives;
   }
 
-  get lives(): number {
-    return this._lives;
-  }
-
   loseLife(): void {
     if (this._lives > 0) {
       this._lives--;

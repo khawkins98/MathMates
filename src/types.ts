@@ -1,4 +1,3 @@
-export type Direction = 'up' | 'down' | 'left' | 'right';
 export type InputAction = 'move_up' | 'move_down' | 'move_left' | 'move_right' | 'eat' | 'sus' | 'pause';
 
 export type GameStateKey =
@@ -6,7 +5,6 @@ export type GameStateKey =
   | 'SELECT'
   | 'BRIEFING'
   | 'PLAYING'
-  | 'ELIMINATION'
   | 'COMPLETE'
   | 'GAME_OVER'
   | 'SETTINGS';
@@ -31,19 +29,6 @@ export interface StageDefinition {
   getRuleText(missionIndex: number): string;
 }
 
-export interface MissionState {
-  stageId: string;
-  missionIndex: number;
-  score: number;
-  streak: number;
-  multiplier: number;
-  livesRemaining: number;
-  startTime: number;
-  correctEaten: number;
-  totalCorrect: number;
-  wrongAnswers: number;
-}
-
 export interface SaveData {
   version: number;
   completedMissions: Record<string, number[]>; // stageId -> completed mission indices
@@ -53,11 +38,4 @@ export interface SaveData {
     impostorEnabled: boolean;
     unlockAll: boolean;
   };
-}
-
-export interface GameState {
-  currentState: GameStateKey;
-  selectedStage: StageDefinition | null;
-  missionIndex: number;
-  mission: MissionState | null;
 }

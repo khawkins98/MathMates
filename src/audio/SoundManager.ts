@@ -2,6 +2,8 @@ export class SoundManager {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private _muted = false;
+  private ambientOsc: OscillatorNode | null = null;
+  private ambientGain: GainNode | null = null;
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
@@ -23,6 +25,9 @@ export class SoundManager {
     this._muted = v;
     if (this.masterGain) {
       this.masterGain.gain.value = v ? 0 : 1;
+    }
+    if (v) {
+      this.stopAmbientHum();
     }
   }
 
@@ -81,7 +86,7 @@ export class SoundManager {
   }
 
   ambientHum(): void {
-    if (this._muted) return;
+    if (this._muted || this.ambientOsc) return;
     const ctx = this.ensureContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -91,7 +96,20 @@ export class SoundManager {
     osc.connect(gain);
     gain.connect(this.masterGain!);
     osc.start();
-    // Will play until context is suspended/destroyed
+    this.ambientOsc = osc;
+    this.ambientGain = gain;
+  }
+
+  stopAmbientHum(): void {
+    if (this.ambientOsc) {
+      this.ambientOsc.stop();
+      this.ambientOsc.disconnect();
+      this.ambientOsc = null;
+    }
+    if (this.ambientGain) {
+      this.ambientGain.disconnect();
+      this.ambientGain = null;
+    }
   }
 
   countdownBeep(): void {

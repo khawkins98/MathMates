@@ -117,7 +117,8 @@ export class TitleScene extends Scene {
   }
 
   exit(): void {
-    this.root.removeChildren();
+    this.manager.sound.stopAmbientHum();
+    this.destroyChildren();
     this.crewmates = [];
     this.startButton = null;
   }

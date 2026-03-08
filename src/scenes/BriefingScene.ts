@@ -220,7 +220,7 @@ export class BriefingScene extends Scene {
   }
 
   exit(): void {
-    this.root.removeChildren();
+    this.destroyChildren();
     this.countdownText = null;
     this.ruleContainer = null;
     this.data = null;

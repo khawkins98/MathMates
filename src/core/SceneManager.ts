@@ -15,7 +15,6 @@ export class SceneManager {
 
   private scenes = new Map<GameStateKey, Scene>();
   private activeScene: Scene | null = null;
-  private activeKey: GameStateKey | null = null;
 
   constructor(app: Application) {
     this.app = app;
@@ -44,7 +43,6 @@ export class SceneManager {
     if (!scene) throw new Error(`Scene not found: ${key}`);
 
     this.activeScene = scene;
-    this.activeKey = key;
     this.app.stage.addChildAt(scene.root, 0);
     scene.enter(data);
 
@@ -53,7 +51,9 @@ export class SceneManager {
 
   start(): void {
     // Import and register all scenes, then go to title
-    this._bootstrap();
+    this._bootstrap().catch((err) => {
+      console.error('Failed to bootstrap scenes:', err);
+    });
   }
 
   private async _bootstrap(): Promise<void> {
@@ -86,10 +86,14 @@ export class SceneManager {
 
     // Start ticker
     this.app.ticker.add((ticker) => {
-      if (this.activeScene) {
-        this.activeScene.update(ticker.deltaMS);
+      try {
+        if (this.activeScene) {
+          this.activeScene.update(ticker.deltaMS);
+        }
+        this.transition.update(ticker.deltaMS);
+      } catch (err) {
+        console.error('Tick error:', err);
       }
-      this.transition.update(ticker.deltaMS);
     });
 
     await this.goto('TITLE');
