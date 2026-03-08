@@ -61,23 +61,15 @@ export function createTimesTableStage(
         attempts++;
       }
 
-      // If we couldn't find enough unique factor pairs, pad with duplicates
-      // by varying presentation order
+      // Cap correct count to unique expressions to avoid duplicates on grid
       const correctList = Array.from(correctExprs);
-      while (correctList.length < correctCount) {
-        const a = randomInt(1, Math.min(12, targetProduct));
-        if (targetProduct % a === 0) {
-          const b = targetProduct / a;
-          if (b >= 1 && b <= 12) {
-            correctList.push(`${a}\u00d7${b}`);
-          }
-        }
-      }
+      const actualCorrectCount = Math.min(correctCount, correctList.length);
+      const actualIncorrectCount = totalCells - actualCorrectCount;
 
       // Generate incorrect expressions that do NOT equal targetProduct
       const incorrectList: string[] = [];
       attempts = 0;
-      while (incorrectList.length < incorrectCount && attempts < 1000) {
+      while (incorrectList.length < actualIncorrectCount && attempts < 1000) {
         const a = randomInt(1, 12);
         const b = randomInt(1, 12);
         const product = a * b;
@@ -89,8 +81,8 @@ export function createTimesTableStage(
 
       // Combine and shuffle
       const entries: Array<{ value: string; correct: boolean }> = [
-        ...correctList.slice(0, correctCount).map((v) => ({ value: v, correct: true })),
-        ...incorrectList.slice(0, incorrectCount).map((v) => ({ value: v, correct: false })),
+        ...correctList.slice(0, actualCorrectCount).map((v) => ({ value: v, correct: true })),
+        ...incorrectList.slice(0, actualIncorrectCount).map((v) => ({ value: v, correct: false })),
       ];
 
       const shuffled = shuffle(entries);
@@ -137,9 +129,10 @@ export const times5 = createTimesTableStage(5, {
 export const times10 = createTimesTableStage(10, {
   name: 'Times Table: 10',
   description: 'Find products equal to 10 times a number.',
+  // 10× table is the easiest — difficulty 2, no impostor
   icon: '\u00d710',
-  difficulty: 3,
+  difficulty: 2,
   missionCount: 5,
-  impostorEnabled: true,
-  parTime: 40000,
+  impostorEnabled: false,
+  parTime: 35000,
 });

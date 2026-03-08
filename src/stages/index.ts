@@ -6,16 +6,16 @@ import { add2d } from './add-2d';
 import { sub1d } from './sub-1d';
 
 const stages: StageDefinition[] = [
+  add1d,
+  sub1d,
+  add2d,
   mult2,
-  mult3,
   mult5,
   mult10,
+  mult3,
   times2,
   times5,
   times10,
-  add1d,
-  add2d,
-  sub1d,
 ];
 
 /** Returns all registered stages. */

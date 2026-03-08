@@ -117,8 +117,8 @@ export const mult10 = createMultiplesStage(10, {
   name: 'Multiples of 10',
   description: 'Find all multiples of 10.',
   icon: '10x',
-  difficulty: 2,
+  difficulty: 1,
   missionCount: 5,
-  impostorEnabled: true,
-  parTime: 35000,
+  impostorEnabled: false,
+  parTime: 30000,
 });

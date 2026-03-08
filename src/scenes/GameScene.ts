@@ -462,11 +462,10 @@ export class GameScene extends Scene {
     // Remove the impostor that caught the player
     this.removeImpostor();
 
-    // Treat like a wrong answer
-    this.scoring.recordWrong();
+    // Lose a life but do NOT reset the maths streak — impostor collision
+    // is a random game event, not a mathematical mistake
     this.lives.loseLife();
     this.manager.sound.errorBuzz();
-    this.hud.setMultiplier(this.scoring.multiplier);
 
     // Trigger elimination sequence
     this.triggerElimination();

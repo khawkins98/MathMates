@@ -65,7 +65,7 @@ The crewmate occupies one cell at a time and moves in four directions with arrow
 
 ### 3.3 Eating / selecting a number
 
-Space or Enter on the current cell "eats" the number. If it satisfies the rule, the cell is consumed (goes blank with a particle effect) and the player scores points. If not, the elimination sequence plays and one crewmate is lost.
+Space or Enter on the current cell "eats" the number. If it satisfies the rule, the cell is consumed (goes blank with a particle effect) and the player scores points. If not, the cell is also consumed (greyed out so it can't be selected again), the elimination sequence plays, and one crewmate is lost.
 
 ### 3.3a Marking cells as "sus"
 
@@ -84,7 +84,7 @@ Escape or the "Quit" button (top-right of the HUD) returns to stage select immed
 
 ### 3.5 Impostor wanderer (optional hazard)
 
-At configurable intervals, an impostor sprite enters from a random edge and follows a random walk. If it lands on the player's cell, one crewmate is lost. The player can't eat the impostor. It despawns after a set number of moves or a timer. This is toggled per-stage and off by default on the easiest stages.
+At configurable intervals, an impostor sprite enters from a random edge and follows a random walk. If it lands on the player's cell, one crewmate is lost, but the player's scoring streak is not reset (impostor encounters are a game hazard, not a maths mistake). The player can't eat the impostor. It despawns after a set number of moves or a timer. This is toggled per-stage and off by default on the easiest stages.
 
 ---
 

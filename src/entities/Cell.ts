@@ -102,7 +102,8 @@ export class Cell extends Container {
         if (this._state === 'correct_flash') {
           this.setState('consumed');
         } else if (this._state === 'error_flash') {
-          this.setState('normal');
+          // Mark wrong cells as consumed so they can't be re-eaten
+          this.setState('consumed');
         }
       } else {
         // Animate fade: interpolate fill from flash color back to normal
