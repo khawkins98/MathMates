@@ -1,0 +1,45 @@
+// Grid
+export const GRID_COLS = 5;
+export const GRID_ROWS = 4;
+export const CELL_SIZE = 64;
+export const GUTTER = 2;
+export const GRID_WIDTH = GRID_COLS * (CELL_SIZE + GUTTER) - GUTTER;
+export const GRID_HEIGHT = GRID_ROWS * (CELL_SIZE + GUTTER) - GUTTER;
+
+// Viewport
+export const GAME_WIDTH = 520;
+export const GAME_HEIGHT = 380;
+export const HUD_HEIGHT = 32;
+
+// Colours (PixiJS hex)
+export const COLORS = {
+  DEEP_SPACE: 0x1b1f3b,
+  VISOR_CYAN: 0x00d9ff,
+  CREW_RED: 0xc51111,
+  HULL_GREY: 0x4a4e69,
+  STAR_WHITE: 0xffffff,
+  SUCCESS_GREEN: 0x17c964,
+} as const;
+
+// Scoring
+export const POINTS_PER_CORRECT = 10;
+export const STREAK_INCREMENT = 0.5;
+export const STREAK_THRESHOLD = 3; // correct answers needed to increment
+export const STREAK_MAX = 3;
+export const TIME_BONUS = 50;
+
+// Lives
+export const STARTING_LIVES = 5;
+
+// Timing (ms)
+export const TRANSITION_DURATION = 500;
+export const ELIMINATION_DURATION = 1500;
+export const COUNTDOWN_STEP_MS = 1000;
+
+// Player movement
+export const MOVE_DURATION = 100; // ms for grid-snap movement
+
+// Impostor
+export const IMPOSTOR_MOVE_INTERVAL = 1500; // ms between moves
+export const IMPOSTOR_LIFESPAN = 10000; // ms before despawn
+export const IMPOSTOR_SPAWN_INTERVAL = 15000; // ms between spawns
