@@ -160,4 +160,17 @@ export class Grid extends Container {
     return positions;
   }
 
+  getUnconsumedWrongPositions(): Array<{ col: number; row: number }> {
+    const positions: Array<{ col: number; row: number }> = [];
+    for (let i = 0; i < this.cells.length; i++) {
+      if (!this.correctIndices.has(i)) {
+        const cell = this.cells[i];
+        if (cell && cell.state !== 'consumed') {
+          positions.push({ col: this.getCol(i), row: this.getRow(i) });
+        }
+      }
+    }
+    return positions;
+  }
+
 }

@@ -127,6 +127,13 @@ export class SoundManager {
     this.playTone('square', 500, 700, 0.05);
   }
 
+  /** Descending whistle for crewmate ejection. */
+  crewmateEject(): void {
+    if (this._muted) return;
+    // Sine wave descending from 1200Hz to 300Hz over 0.25s
+    this.playTone('sine', 1200, 300, 0.25);
+  }
+
   /** Descending sweep for impostor eating a wrong cell (sabotage success). */
   sabotageEat(): void {
     if (this._muted) return;

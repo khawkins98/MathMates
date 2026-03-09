@@ -104,12 +104,12 @@ export class BriefingScene extends Scene {
         align: 'center',
       });
       const flavorText = new Text({
-        text: 'You are the impostor. Eat WRONG answers to sabotage!',
+        text: 'You are the impostor. Eat WRONG answers to sabotage!\nCatch crewmates on wrong cells to eject them!',
         style: flavorStyle,
       });
       flavorText.anchor.set(0.5);
       flavorText.x = GAME_WIDTH / 2;
-      flavorText.y = GAME_HEIGHT / 2 + 20;
+      flavorText.y = GAME_HEIGHT / 2 + 25;
       this.ruleContainer.addChild(flavorText);
     }
 

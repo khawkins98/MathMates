@@ -4,7 +4,7 @@ import { SceneManager } from '@/core/SceneManager';
 import { Grid } from '@/entities/Grid';
 import { Player } from '@/entities/Player';
 import { Impostor } from '@/entities/Impostor';
-import { AICrewmate } from '@/entities/AICrewmate';
+import { AICrewmate, AI_PERSONALITIES } from '@/entities/AICrewmate';
 import { HUD } from '@/ui/HUD';
 import { EliminationOverlay, type EliminationVariant } from '@/ui/EliminationOverlay';
 import { ScoringSystem } from '@/systems/ScoringSystem';
@@ -12,6 +12,7 @@ import { LivesSystem } from '@/systems/LivesSystem';
 import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
+import { pickEdgeCells, manhattan } from '@/entities/gridHelpers';
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -22,14 +23,35 @@ import {
   GRID_HEIGHT,
   STARTING_LIVES,
   IMPOSTOR_SPAWN_INTERVAL,
+  AI_CREWMATE_COUNT,
+  AI_EJECT_DURATION,
   COLORS,
 } from '@/constants';
 import type { StageDefinition, InputAction, GameMode } from '@/types';
+
+const FLOAT_DURATION = 800; // ms for floating text animation
+
+const FLOAT_TEXT_STYLE = new TextStyle({
+  fontFamily: 'monospace',
+  fontSize: 14,
+  fontWeight: 'bold',
+  fill: COLORS.SUCCESS_GREEN,
+});
 
 interface GameSceneData {
   stage: StageDefinition;
   missionIndex: number;
   mode?: GameMode;
+}
+
+interface EjectingCrewmate {
+  container: AICrewmate;
+  elapsed: number;
+}
+
+interface FloatingText {
+  text: Text;
+  elapsed: number;
 }
 
 export class GameScene extends Scene {
@@ -39,7 +61,11 @@ export class GameScene extends Scene {
   private grid: Grid | null = null;
   private player: Player | null = null;
   private impostor: Impostor | null = null;
-  private aiCrewmate: AICrewmate | null = null;
+  private aiCrewmates: AICrewmate[] = [];
+
+  // Eject / floating text animations
+  private ejectingCrewmates: EjectingCrewmate[] = [];
+  private floatingTexts: FloatingText[] = [];
 
   // UI
   private hud: HUD | null = null;
@@ -86,7 +112,9 @@ export class GameScene extends Scene {
     this.impostorSpawnTimer = 0;
     this.impostorScheduled = false;
     this.impostor = null;
-    this.aiCrewmate = null;
+    this.aiCrewmates = [];
+    this.ejectingCrewmates = [];
+    this.floatingTexts = [];
     this.wrongMathCount = 0;
     this.pauseOverlay = null;
 
@@ -108,10 +136,14 @@ export class GameScene extends Scene {
       // Player is the impostor in impostor mode
       const impostorSprite = createImpostorSprite();
       impostorSprite.pivot.set(11, 12);
+      impostorSprite.y = 16;
+      impostorSprite.scale.set(0.8);
       this.player.addChild(impostorSprite);
     } else {
       const crewmate = createCrewmateSprite(CREW_COLORS[0]);
-      crewmate.pivot.set(11, 12); // Center the 22x24 sprite
+      crewmate.pivot.set(11, 12);
+      crewmate.y = 16;
+      crewmate.scale.set(0.8);
       this.player.addChild(crewmate);
     }
     this.player.moveTo(0, 0);
@@ -127,7 +159,7 @@ export class GameScene extends Scene {
       const baseRule = stage.getRuleText(missionIndex);
       this.hud.setRule(`NOT ${baseRule}`);
       this.hud.setModeIndicator('impostor');
-      this.hud.setProgress(0, this.grid.totalWrong, COLORS.CREW_RED);
+      this.hud.setProgress(0, this.grid.totalCorrect, COLORS.SUCCESS_GREEN);
     } else {
       this.hud.setRule(stage.getRuleText(missionIndex));
       this.hud.setProgress(0, this.grid.totalCorrect, COLORS.SUCCESS_GREEN);
@@ -155,8 +187,8 @@ export class GameScene extends Scene {
     this.root.addChild(this.eliminationOverlay);
 
     if (this.mode === 'impostor') {
-      // Spawn AI crewmate as the enemy
-      this.spawnAICrewmate();
+      // Spawn AI crewmates as enemies
+      this.spawnAICrewmates();
     } else {
       // Determine if impostor is active for this mission (crew mode only)
       this.impostorEnabled =
@@ -202,9 +234,15 @@ export class GameScene extends Scene {
     // Update HUD (impostor warning pulse)
     this.hud?.update(dt);
 
+    // Update eject animations
+    this.updateEjectAnimations(dt);
+
+    // Update floating texts
+    this.updateFloatingTexts(dt);
+
     // Handle impostor logic or AI crewmate logic
     if (this.mode === 'impostor') {
-      this.updateAICrewmate(dt);
+      this.updateAICrewmates(dt);
     } else if (this.impostorEnabled) {
       this.updateImpostor(dt);
     }
@@ -220,8 +258,22 @@ export class GameScene extends Scene {
     // Remove impostor reference before destroying children
     this.removeImpostor();
 
-    // Remove AI crewmate reference
-    this.removeAICrewmate();
+    // Remove AI crewmate references
+    this.removeAllAICrewmates();
+
+    // Clean up eject animations
+    for (const ej of this.ejectingCrewmates) {
+      ej.container.removeFromParent();
+      ej.container.destroy({ children: true });
+    }
+    this.ejectingCrewmates = [];
+
+    // Clean up floating texts
+    for (const ft of this.floatingTexts) {
+      ft.text.removeFromParent();
+      ft.text.destroy();
+    }
+    this.floatingTexts = [];
 
     // Remove pause overlay if showing
     if (this.pauseOverlay) {
@@ -369,7 +421,9 @@ export class GameScene extends Scene {
 
       this.hud.setScore(this.scoring.score);
       this.hud.setMultiplier(this.scoring.multiplier);
-      this.hud.setProgress(this.grid.wrongEaten, this.grid.totalWrong, COLORS.CREW_RED);
+
+      // Check if any alive crewmate is standing on this cell — eliminate them
+      this.checkCrewmateElimination(col, row);
 
       // Check win: all wrong cells cleared
       if (this.grid.isAllWrongCleared()) {
@@ -532,7 +586,7 @@ export class GameScene extends Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // Impostor system
+  // Impostor system (crew mode)
   // ---------------------------------------------------------------------------
 
   private scheduleImpostorSpawn(): void {
@@ -577,7 +631,9 @@ export class GameScene extends Scene {
     const { col, row } = this.player.getGridPosition();
     this.impostor = new Impostor(col, row);
     const impostorSprite = createImpostorSprite();
-    impostorSprite.pivot.set(11, 12); // Center the sprite
+    impostorSprite.pivot.set(11, 12);
+    impostorSprite.y = 18;
+    impostorSprite.scale.set(0.65);
     this.impostor.addChild(impostorSprite);
     this.grid.addChild(this.impostor);
 
@@ -615,66 +671,203 @@ export class GameScene extends Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // AI Crewmate system (Impostor Mode)
+  // AI Crewmate system (Impostor Mode) — multiple crewmates
   // ---------------------------------------------------------------------------
 
-  private spawnAICrewmate(): void {
+  private spawnAICrewmates(): void {
     if (!this.grid || !this.player || !this.stage) return;
 
     const { col, row } = this.player.getGridPosition();
-    this.aiCrewmate = new AICrewmate(col, row, this.stage.difficulty);
-    const sprite = createCrewmateSprite(CREW_COLORS[1]); // blue crewmate
-    sprite.pivot.set(11, 12);
-    this.aiCrewmate.addChild(sprite);
-    this.grid.addChild(this.aiCrewmate);
-  }
+    const edgeCells = pickEdgeCells(AI_CREWMATE_COUNT, col, row);
 
-  private removeAICrewmate(): void {
-    if (this.aiCrewmate) {
-      this.aiCrewmate.removeFromParent();
-      this.aiCrewmate.destroy({ children: true });
-      this.aiCrewmate = null;
+    for (let i = 0; i < AI_CREWMATE_COUNT; i++) {
+      const personality = AI_PERSONALITIES[i];
+      const crewmate = new AICrewmate(personality, col, row, this.stage.difficulty);
+
+      // Override spawn position to use distinct edge cells
+      if (edgeCells[i]) {
+        crewmate.spawnAt(edgeCells[i].col, edgeCells[i].row);
+      }
+
+      const sprite = createCrewmateSprite(CREW_COLORS[personality.colorIndex]);
+      sprite.pivot.set(11, 12);
+      sprite.y = 18;
+      sprite.x = (i - 1) * 10;
+      sprite.scale.set(0.65);
+      crewmate.addChild(sprite);
+      this.grid.addChild(crewmate);
+      this.aiCrewmates.push(crewmate);
     }
+
+    // Update HUD with crewmate status
+    this.updateCrewmateStatusHUD();
   }
 
-  private updateAICrewmate(dt: number): void {
-    if (!this.aiCrewmate || !this.player || !this.grid || !this.hud || !this.lives) return;
+  private removeAllAICrewmates(): void {
+    for (const crewmate of this.aiCrewmates) {
+      crewmate.removeFromParent();
+      crewmate.destroy({ children: true });
+    }
+    this.aiCrewmates = [];
+  }
+
+  private updateAICrewmates(dt: number): void {
+    if (!this.player || !this.grid || !this.hud || !this.lives) return;
 
     const { col: pCol, row: pRow } = this.player.getGridPosition();
 
-    // Update AI — returns true if it landed on a correct cell to consume
-    const consumed = this.aiCrewmate.update(dt, this.grid, pCol, pRow);
-
-    if (consumed) {
-      // AI silently eats a correct cell — no pause, just update progress
-      this.grid.consumeCellWithFlash(this.aiCrewmate.gridCol, this.aiCrewmate.gridRow, 'correct');
-
-      // Check if AI cleared all correct cells — player loses
-      if (this.grid.isCleared()) {
-        this.handleImpostorLose();
-        return;
+    // Find nearest alive crewmate to player for chase exclusivity
+    let nearestDist = Infinity;
+    let nearestIdx = -1;
+    for (let i = 0; i < this.aiCrewmates.length; i++) {
+      const c = this.aiCrewmates[i];
+      if (!c.alive) continue;
+      const dist = manhattan(c.gridCol, c.gridRow, pCol, pRow);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestIdx = i;
       }
     }
 
-    // Check collision with player
-    if (this.aiCrewmate.checkCollision(pCol, pRow)) {
-      this.handleAICrewmateCatch();
+    for (let i = 0; i < this.aiCrewmates.length; i++) {
+      const crewmate = this.aiCrewmates[i];
+      if (!crewmate.alive) continue;
+
+      // Only the nearest crewmate chases — others get null player position
+      const canChase = i === nearestIdx;
+      const consumed = crewmate.update(
+        dt,
+        this.grid,
+        canChase ? pCol : null,
+        canChase ? pRow : null,
+      );
+
+      if (consumed) {
+        // AI completed dwell and consumes a correct cell
+        this.grid.consumeCellWithFlash(crewmate.gridCol, crewmate.gridRow, 'correct');
+
+        // Update progress bar with crewmate progress (threat indicator)
+        this.hud.setProgress(this.grid.correctEaten, this.grid.totalCorrect, COLORS.SUCCESS_GREEN);
+
+        // Check if AI cleared all correct cells — player loses
+        if (this.grid.isCleared()) {
+          this.handleImpostorLose();
+          return;
+        }
+      }
+
+      // Check collision with player (using real player position)
+      if (crewmate.checkCollision(pCol, pRow)) {
+        this.handleAICrewmateCatch(crewmate);
+        return; // Only handle one collision per frame
+      }
     }
   }
 
-  private handleAICrewmateCatch(): void {
+  private handleAICrewmateCatch(crewmate: AICrewmate): void {
     if (!this.lives || !this.player) return;
 
     this.lives.loseLife();
     this.manager.sound.errorBuzz();
 
-    // Respawn AI at edge
-    if (this.aiCrewmate) {
-      const { col, row } = this.player.getGridPosition();
-      this.aiCrewmate.respawnAtEdge(col, row);
-    }
+    // Respawn the crewmate that caught the player at edge
+    const { col, row } = this.player.getGridPosition();
+    crewmate.respawnAtEdge(col, row);
 
     this.triggerElimination('voted_out');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Crewmate Elimination
+  // ---------------------------------------------------------------------------
+
+  private checkCrewmateElimination(col: number, row: number): void {
+    for (const crewmate of this.aiCrewmates) {
+      if (crewmate.alive && crewmate.gridCol === col && crewmate.gridRow === row) {
+        this.eliminateCrewmate(crewmate);
+        break; // Only eliminate one per cell eat
+      }
+    }
+  }
+
+  private eliminateCrewmate(crewmate: AICrewmate): void {
+    if (!this.scoring || !this.hud || !this.grid) return;
+
+    crewmate.eliminate();
+
+    // Award points
+    this.scoring.recordElimination();
+    this.hud.setScore(this.scoring.score);
+    this.hud.setMultiplier(this.scoring.multiplier);
+
+    // Play eject sound
+    this.manager.sound.crewmateEject();
+
+    // Start eject animation (spin + shrink)
+    this.ejectingCrewmates.push({ container: crewmate, elapsed: 0 });
+
+    // Show floating "+25" text
+    const floatText = new Text({ text: '+25', style: FLOAT_TEXT_STYLE });
+    floatText.anchor.set(0.5);
+    floatText.x = crewmate.x;
+    floatText.y = crewmate.y - 10;
+    this.grid.addChild(floatText);
+    this.floatingTexts.push({ text: floatText, elapsed: 0 });
+
+    // Update HUD crewmate status
+    this.updateCrewmateStatusHUD();
+  }
+
+  private updateEjectAnimations(dt: number): void {
+    for (let i = this.ejectingCrewmates.length - 1; i >= 0; i--) {
+      const ej = this.ejectingCrewmates[i];
+      ej.elapsed += dt;
+
+      const progress = Math.min(ej.elapsed / AI_EJECT_DURATION, 1);
+
+      // Scale 1 → 0
+      ej.container.scale.set(1 - progress);
+
+      // 720 degree spin (2 full rotations)
+      ej.container.rotation = progress * Math.PI * 4;
+
+      if (progress >= 1) {
+        ej.container.removeFromParent();
+        ej.container.destroy({ children: true });
+        this.ejectingCrewmates.splice(i, 1);
+      }
+    }
+  }
+
+  private updateFloatingTexts(dt: number): void {
+    for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = this.floatingTexts[i];
+      ft.elapsed += dt;
+
+      const progress = Math.min(ft.elapsed / FLOAT_DURATION, 1);
+
+      // Rise upward
+      ft.text.y -= dt * 0.03;
+
+      // Fade out
+      ft.text.alpha = 1 - progress;
+
+      if (progress >= 1) {
+        ft.text.removeFromParent();
+        ft.text.destroy();
+        this.floatingTexts.splice(i, 1);
+      }
+    }
+  }
+
+  private updateCrewmateStatusHUD(): void {
+    if (!this.hud) return;
+
+    const statuses = this.aiCrewmates.map((c) => ({
+      color: CREW_COLORS[c.personalityConfig.colorIndex],
+      alive: c.alive,
+    }));
+    this.hud.setCrewmateStatus(statuses);
   }
 
   private handleImpostorLose(): void {

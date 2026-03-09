@@ -42,6 +42,11 @@ const WARNING_STYLE = new TextStyle({
 const PROGRESS_BAR_WIDTH = 80;
 const PROGRESS_BAR_HEIGHT = 6;
 
+export interface CrewmateStatus {
+  color: number;
+  alive: boolean;
+}
+
 export class HUD extends Container {
   private bg: Graphics;
   private ruleText: Text;
@@ -56,6 +61,7 @@ export class HUD extends Container {
   private progressBarBg: Graphics;
   private progressBarFill: Graphics;
   private progressLabel: Text;
+  private crewmateStatusContainer: Container;
 
   constructor() {
     super();
@@ -139,6 +145,11 @@ export class HUD extends Container {
     this.progressLabel.x = PROGRESS_BAR_WIDTH + 4;
     this.progressLabel.y = PROGRESS_BAR_HEIGHT / 2;
     this.progressBarContainer.addChild(this.progressLabel);
+
+    // Crewmate status icons (shown in impostor mode, below lives)
+    this.crewmateStatusContainer = new Container();
+    this.crewmateStatusContainer.visible = false;
+    this.addChild(this.crewmateStatusContainer);
   }
 
   setRule(text: string): void {
@@ -163,7 +174,7 @@ export class HUD extends Container {
 
     const iconSpacing = 14;
     const totalWidth = max * iconSpacing;
-    const startX = GAME_WIDTH - 6 - totalWidth;
+    const startX = GAME_WIDTH - 62 - totalWidth;
 
     for (let i = 0; i < max; i++) {
       const mini = createMiniCrewmate(CREW_COLORS[0]);
@@ -199,6 +210,29 @@ export class HUD extends Container {
     if (fillWidth > 0) {
       this.progressBarFill.roundRect(0, 0, fillWidth, PROGRESS_BAR_HEIGHT, 3).fill(color);
     }
+  }
+
+  setCrewmateStatus(statuses: CrewmateStatus[]): void {
+    this.crewmateStatusContainer.removeChildren();
+    if (statuses.length === 0) {
+      this.crewmateStatusContainer.visible = false;
+      return;
+    }
+
+    this.crewmateStatusContainer.visible = true;
+    const iconSpacing = 14;
+    const totalWidth = statuses.length * iconSpacing;
+    const startX = GAME_WIDTH - 62 - totalWidth;
+
+    for (let i = 0; i < statuses.length; i++) {
+      const mini = createMiniCrewmate(statuses[i].color);
+      mini.x = startX + i * iconSpacing;
+      mini.alpha = statuses[i].alive ? 1 : 0.2;
+      this.crewmateStatusContainer.addChild(mini);
+    }
+
+    // Position below lives row
+    this.crewmateStatusContainer.y = 20;
   }
 
   showImpostorWarning(show: boolean): void {

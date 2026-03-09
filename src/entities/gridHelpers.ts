@@ -1,5 +1,5 @@
 import { CELL_SIZE, GUTTER, GRID_COLS, GRID_ROWS } from '../constants';
-import { pickRandom } from '../utils';
+import { pickRandom, shuffle } from '../utils';
 
 /** Convert grid column/row to pixel coordinates (center of cell). */
 export function gridToPixel(col: number, row: number): { x: number; y: number } {
@@ -9,11 +9,16 @@ export function gridToPixel(col: number, row: number): { x: number; y: number } 
   };
 }
 
-/** Pick a random edge cell, excluding the given player position. */
-export function pickEdgeCell(
-  playerCol: number,
-  playerRow: number,
-): { col: number; row: number } {
+/** Manhattan distance between two grid positions. */
+export function manhattan(c1: number, r1: number, c2: number, r2: number): number {
+  return Math.abs(c1 - c2) + Math.abs(r1 - r2);
+}
+
+/** Build the list of all edge cells, excluding a given position. */
+function getEdgeCandidates(
+  excludeCol: number,
+  excludeRow: number,
+): Array<{ col: number; row: number }> {
   const edgeCells: Array<{ col: number; row: number }> = [];
   for (let c = 0; c < GRID_COLS; c++) {
     edgeCells.push({ col: c, row: 0 });
@@ -24,11 +29,28 @@ export function pickEdgeCell(
     edgeCells.push({ col: GRID_COLS - 1, row: r });
   }
 
-  const candidates = edgeCells.filter(
-    (c) => c.col !== playerCol || c.row !== playerRow,
+  return edgeCells.filter(
+    (c) => c.col !== excludeCol || c.row !== excludeRow,
   );
+}
 
-  return pickRandom(candidates);
+/** Pick a random edge cell, excluding the given player position. */
+export function pickEdgeCell(
+  playerCol: number,
+  playerRow: number,
+): { col: number; row: number } {
+  return pickRandom(getEdgeCandidates(playerCol, playerRow));
+}
+
+/**
+ * Pick multiple distinct edge cells, excluding a given position and each other.
+ */
+export function pickEdgeCells(
+  count: number,
+  excludeCol: number,
+  excludeRow: number,
+): Array<{ col: number; row: number }> {
+  return shuffle(getEdgeCandidates(excludeCol, excludeRow)).slice(0, count);
 }
 
 /** Get all in-bounds adjacent cells (cardinal directions, no wrapping). */

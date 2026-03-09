@@ -1,5 +1,6 @@
 import {
   POINTS_PER_CORRECT,
+  POINTS_PER_ELIMINATION,
   STREAK_INCREMENT,
   STREAK_THRESHOLD,
   STREAK_MAX,
@@ -25,7 +26,15 @@ export class ScoringSystem {
   }
 
   recordCorrect(): void {
-    this._score += Math.round(POINTS_PER_CORRECT * this._multiplier);
+    this.addPoints(POINTS_PER_CORRECT);
+  }
+
+  recordElimination(): void {
+    this.addPoints(POINTS_PER_ELIMINATION);
+  }
+
+  private addPoints(base: number): void {
+    this._score += Math.round(base * this._multiplier);
     this._consecutiveCorrect++;
 
     if (this._consecutiveCorrect >= STREAK_THRESHOLD) {
