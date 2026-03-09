@@ -7,6 +7,7 @@ export class Grid extends Container {
   private cells: Cell[] = [];
   private correctIndices: Set<number> = new Set();
   private consumedCorrect = 0;
+  private consumedWrong = 0;
 
   constructor() {
     super();
@@ -25,6 +26,7 @@ export class Grid extends Container {
   populate(data: GridData): void {
     this.correctIndices = new Set(data.correctIndices);
     this.consumedCorrect = 0;
+    this.consumedWrong = 0;
 
     for (let i = 0; i < this.cells.length; i++) {
       const cell = this.cells[i];
@@ -52,6 +54,7 @@ export class Grid extends Container {
       this.consumedCorrect++;
     } else {
       cell.flash('error');
+      this.consumedWrong++;
     }
 
     return isCorrect;
@@ -109,4 +112,52 @@ export class Grid extends Container {
   get correctEaten(): number {
     return this.consumedCorrect;
   }
+
+  get totalWrong(): number {
+    return this.cells.length - this.correctIndices.size;
+  }
+
+  get wrongEaten(): number {
+    return this.consumedWrong;
+  }
+
+  isCorrectCell(col: number, row: number): boolean {
+    const index = this.getIndex(col, row);
+    return this.correctIndices.has(index);
+  }
+
+  /**
+   * Consume a cell with an explicit flash type (for impostor mode where
+   * correct/error flash colors are inverted).
+   */
+  consumeCellWithFlash(col: number, row: number, flashType: 'correct' | 'error'): void {
+    const index = this.getIndex(col, row);
+    const cell = this.cells[index];
+    if (!cell || cell.state === 'consumed') return;
+
+    const isCorrect = this.correctIndices.has(index);
+    if (isCorrect) {
+      this.consumedCorrect++;
+    } else {
+      this.consumedWrong++;
+    }
+
+    cell.flash(flashType);
+  }
+
+  isAllWrongCleared(): boolean {
+    return this.consumedWrong >= this.totalWrong;
+  }
+
+  getUnconsumedCorrectPositions(): Array<{ col: number; row: number }> {
+    const positions: Array<{ col: number; row: number }> = [];
+    for (const index of this.correctIndices) {
+      const cell = this.cells[index];
+      if (cell && cell.state !== 'consumed') {
+        positions.push({ col: this.getCol(index), row: this.getRow(index) });
+      }
+    }
+    return positions;
+  }
+
 }

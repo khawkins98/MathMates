@@ -3,13 +3,16 @@ import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
 import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { createImpostorSprite } from '@/sprites/ImpostorSprite';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
-import type { StageDefinition } from '@/types';
+import type { StageDefinition, GameMode, LoseReason } from '@/types';
 
 interface GameOverData {
   stage: StageDefinition;
   missionIndex: number;
   score: number;
+  mode?: GameMode;
+  loseReason?: LoseReason;
 }
 
 export class GameOverScene extends Scene {
@@ -31,7 +34,18 @@ export class GameOverScene extends Scene {
 
     this.elapsed = 0;
 
-    // "GAME OVER" text
+    const mode = this.data.mode ?? 'crew';
+    const isImpostor = mode === 'impostor';
+    const loseReason = this.data.loseReason ?? 'lives';
+
+    // Title text varies by mode
+    let titleLabel: string;
+    if (isImpostor) {
+      titleLabel = loseReason === 'ai_cleared' ? 'BUSTED!' : 'EJECTED!';
+    } else {
+      titleLabel = 'GAME OVER';
+    }
+
     const titleStyle = new TextStyle({
       fontFamily: 'monospace',
       fontSize: 36,
@@ -39,19 +53,41 @@ export class GameOverScene extends Scene {
       fill: COLORS.CREW_RED,
       align: 'center',
     });
-    this.gameOverText = new Text({ text: 'GAME OVER', style: titleStyle });
+    this.gameOverText = new Text({ text: titleLabel, style: titleStyle });
     this.gameOverText.anchor.set(0.5);
     this.gameOverText.x = GAME_WIDTH / 2;
     this.gameOverText.y = 80;
     this.root.addChild(this.gameOverText);
 
-    // Ghost crewmate (low alpha, drifting upward)
-    this.ghostCrewmate = createCrewmateSprite(CREW_COLORS[0]);
+    // Ghost sprite (crewmate or impostor depending on mode)
+    if (isImpostor) {
+      this.ghostCrewmate = createImpostorSprite();
+    } else {
+      this.ghostCrewmate = createCrewmateSprite(CREW_COLORS[0]);
+    }
     this.ghostCrewmate.alpha = 0.25;
     this.ghostCrewmate.x = GAME_WIDTH / 2 - 10;
     this.ghostBaseY = GAME_HEIGHT / 2 - 20;
     this.ghostCrewmate.y = this.ghostBaseY;
     this.root.addChild(this.ghostCrewmate);
+
+    // Reason text for impostor mode
+    if (isImpostor) {
+      const reasonStyle = new TextStyle({
+        fontFamily: 'monospace',
+        fontSize: 12,
+        fill: COLORS.HULL_GREY,
+        align: 'center',
+      });
+      const reasonLabel = loseReason === 'ai_cleared'
+        ? 'The crew cleared all correct answers!'
+        : 'You ran out of lives!';
+      const reasonText = new Text({ text: reasonLabel, style: reasonStyle });
+      reasonText.anchor.set(0.5);
+      reasonText.x = GAME_WIDTH / 2;
+      reasonText.y = GAME_HEIGHT / 2 + 20;
+      this.root.addChild(reasonText);
+    }
 
     // Score display
     const scoreStyle = new TextStyle({
@@ -81,6 +117,7 @@ export class GameOverScene extends Scene {
       this.manager.goto('BRIEFING', {
         stage: this.data.stage,
         missionIndex: this.data.missionIndex,
+        mode,
       });
     };
     this.root.addChild(retryButton);

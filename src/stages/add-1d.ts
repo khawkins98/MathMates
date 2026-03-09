@@ -7,7 +7,6 @@ export const add1d: StageDefinition = {
   id: 'add-1d',
   name: 'Single-Digit Addition',
   description: 'Find sums that equal the target number.',
-  icon: '+1d',
   difficulty: 1,
   missionCount: TARGETS.length,
   impostorEnabled: false,

@@ -1,6 +1,7 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { COLORS, GAME_WIDTH, HUD_HEIGHT } from '@/constants';
 import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import type { GameMode } from '@/types';
 
 const RULE_STYLE = new TextStyle({
   fontFamily: 'monospace',
@@ -38,6 +39,9 @@ const WARNING_STYLE = new TextStyle({
  * 32px tall, full width (520px).
  * Left: rule text. Center: score + streak multiplier. Right: lives + impostor warning.
  */
+const PROGRESS_BAR_WIDTH = 80;
+const PROGRESS_BAR_HEIGHT = 6;
+
 export class HUD extends Container {
   private bg: Graphics;
   private ruleText: Text;
@@ -47,6 +51,11 @@ export class HUD extends Container {
   private warningText: Text;
   private warningVisible = false;
   private warningElapsed = 0;
+  private modeLabel: Text;
+  private progressBarContainer: Container;
+  private progressBarBg: Graphics;
+  private progressBarFill: Graphics;
+  private progressLabel: Text;
 
   constructor() {
     super();
@@ -88,6 +97,48 @@ export class HUD extends Container {
     this.warningText.y = HUD_HEIGHT / 2;
     this.warningText.visible = false;
     this.addChild(this.warningText);
+
+    // Mode indicator label (shown in impostor mode)
+    const modeStyle = new TextStyle({
+      fontFamily: 'monospace',
+      fontSize: 8,
+      fontWeight: 'bold',
+      fill: COLORS.CREW_RED,
+    });
+    this.modeLabel = new Text({ text: 'IMPOSTOR', style: modeStyle });
+    this.modeLabel.anchor.set(0.5, 0);
+    this.modeLabel.x = GAME_WIDTH / 2;
+    this.modeLabel.y = 24;
+    this.modeLabel.visible = false;
+    this.addChild(this.modeLabel);
+
+    // Progress bar (works for both modes)
+    this.progressBarContainer = new Container();
+    this.progressBarContainer.visible = false;
+    this.progressBarContainer.x = GAME_WIDTH / 2 - PROGRESS_BAR_WIDTH / 2;
+    this.progressBarContainer.y = 20;
+    this.addChild(this.progressBarContainer);
+
+    // Bar background (dark track)
+    this.progressBarBg = new Graphics();
+    this.progressBarBg.roundRect(0, 0, PROGRESS_BAR_WIDTH, PROGRESS_BAR_HEIGHT, 3).fill(0x222244);
+    this.progressBarContainer.addChild(this.progressBarBg);
+
+    // Bar fill (colored portion)
+    this.progressBarFill = new Graphics();
+    this.progressBarContainer.addChild(this.progressBarFill);
+
+    // Label (e.g. "8/12")
+    const progressLabelStyle = new TextStyle({
+      fontFamily: 'monospace',
+      fontSize: 8,
+      fill: COLORS.HULL_GREY,
+    });
+    this.progressLabel = new Text({ text: '', style: progressLabelStyle });
+    this.progressLabel.anchor.set(0, 0.5);
+    this.progressLabel.x = PROGRESS_BAR_WIDTH + 4;
+    this.progressLabel.y = PROGRESS_BAR_HEIGHT / 2;
+    this.progressBarContainer.addChild(this.progressLabel);
   }
 
   setRule(text: string): void {
@@ -124,6 +175,29 @@ export class HUD extends Container {
       }
 
       this.livesContainer.addChild(mini);
+    }
+  }
+
+  setModeIndicator(mode: GameMode): void {
+    this.modeLabel.visible = mode === 'impostor';
+  }
+
+  /**
+   * Update the objective progress bar.
+   * @param eaten - cells consumed toward the objective
+   * @param total - total cells needed for the objective
+   * @param color - fill color (green for crew, red for impostor sabotage)
+   */
+  setProgress(eaten: number, total: number, color: number = COLORS.SUCCESS_GREEN): void {
+    this.progressBarContainer.visible = true;
+    this.progressLabel.text = `${eaten}/${total}`;
+
+    const fraction = total > 0 ? Math.min(eaten / total, 1) : 0;
+    const fillWidth = Math.round(PROGRESS_BAR_WIDTH * fraction);
+
+    this.progressBarFill.clear();
+    if (fillWidth > 0) {
+      this.progressBarFill.roundRect(0, 0, fillWidth, PROGRESS_BAR_HEIGHT, 3).fill(color);
     }
   }
 

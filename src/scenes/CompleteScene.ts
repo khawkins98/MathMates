@@ -7,7 +7,7 @@ import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { AnimationSystem } from '@/core/AnimationSystem';
 import { Easing } from '@/core/Easing';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, TIME_BONUS } from '@/constants';
-import type { StageDefinition } from '@/types';
+import type { StageDefinition, GameMode } from '@/types';
 
 interface CompleteData {
   stage: StageDefinition;
@@ -18,6 +18,7 @@ interface CompleteData {
   maxLives: number;
   elapsed: number;
   parTime: number;
+  mode?: GameMode;
 }
 
 interface StarDelay {
@@ -49,25 +50,38 @@ export class CompleteScene extends Scene {
     this.starDelays = [];
     this.sceneElapsed = 0;
 
-    // Save progress
-    this.manager.save.completeMission(
-      this.data.stage.id,
-      this.data.missionIndex,
-      this.data.score,
-    );
+    const mode = this.data.mode ?? 'crew';
+    const isImpostor = mode === 'impostor';
+
+    // Save progress to mode-specific slot
+    if (isImpostor) {
+      this.manager.save.completeImpostorMission(
+        this.data.stage.id,
+        this.data.missionIndex,
+        this.data.score,
+      );
+    } else {
+      this.manager.save.completeMission(
+        this.data.stage.id,
+        this.data.missionIndex,
+        this.data.score,
+      );
+    }
 
     // Play complete sound
     this.manager.sound.missionComplete();
 
-    // "MISSION COMPLETE!" title
+    // Title
+    const titleLabel = isImpostor ? 'SABOTAGE COMPLETE!' : 'MISSION COMPLETE!';
+    const titleColor = isImpostor ? COLORS.CREW_RED : COLORS.SUCCESS_GREEN;
     const titleStyle = new TextStyle({
       fontFamily: 'monospace',
       fontSize: 28,
       fontWeight: 'bold',
-      fill: COLORS.SUCCESS_GREEN,
+      fill: titleColor,
       align: 'center',
     });
-    const titleText = new Text({ text: 'MISSION COMPLETE!', style: titleStyle });
+    const titleText = new Text({ text: titleLabel, style: titleStyle });
     titleText.anchor.set(0.5);
     titleText.x = GAME_WIDTH / 2;
     titleText.y = 40;
@@ -191,6 +205,7 @@ export class CompleteScene extends Scene {
         this.manager.goto('BRIEFING', {
           stage: this.data.stage,
           missionIndex: this.data.missionIndex + 1,
+          mode,
         });
       }
     };

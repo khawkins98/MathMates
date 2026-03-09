@@ -4,8 +4,9 @@ import { SceneManager } from '@/core/SceneManager';
 import { Grid } from '@/entities/Grid';
 import { Player } from '@/entities/Player';
 import { Impostor } from '@/entities/Impostor';
+import { AICrewmate } from '@/entities/AICrewmate';
 import { HUD } from '@/ui/HUD';
-import { EliminationOverlay } from '@/ui/EliminationOverlay';
+import { EliminationOverlay, type EliminationVariant } from '@/ui/EliminationOverlay';
 import { ScoringSystem } from '@/systems/ScoringSystem';
 import { LivesSystem } from '@/systems/LivesSystem';
 import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
@@ -23,11 +24,12 @@ import {
   IMPOSTOR_SPAWN_INTERVAL,
   COLORS,
 } from '@/constants';
-import type { StageDefinition, InputAction } from '@/types';
+import type { StageDefinition, InputAction, GameMode } from '@/types';
 
 interface GameSceneData {
   stage: StageDefinition;
   missionIndex: number;
+  mode?: GameMode;
 }
 
 export class GameScene extends Scene {
@@ -37,6 +39,7 @@ export class GameScene extends Scene {
   private grid: Grid | null = null;
   private player: Player | null = null;
   private impostor: Impostor | null = null;
+  private aiCrewmate: AICrewmate | null = null;
 
   // UI
   private hud: HUD | null = null;
@@ -55,6 +58,7 @@ export class GameScene extends Scene {
   private impostorSpawnTimer = 0;
   private impostorScheduled = false;
   private wrongMathCount = 0;
+  private mode: GameMode = 'crew';
 
   // Pause overlay
   private pauseOverlay: Graphics | null = null;
@@ -69,9 +73,11 @@ export class GameScene extends Scene {
   }
 
   enter(data?: unknown): void {
-    const { stage, missionIndex } = data as GameSceneData;
+    const sceneData = data as GameSceneData;
+    const { stage, missionIndex } = sceneData;
     this.stage = stage;
     this.missionIndex = missionIndex;
+    this.mode = sceneData.mode ?? 'crew';
 
     // Reset state
     this.playing = true;
@@ -80,6 +86,7 @@ export class GameScene extends Scene {
     this.impostorSpawnTimer = 0;
     this.impostorScheduled = false;
     this.impostor = null;
+    this.aiCrewmate = null;
     this.wrongMathCount = 0;
     this.pauseOverlay = null;
 
@@ -97,9 +104,16 @@ export class GameScene extends Scene {
 
     // Create player at grid position (0, 0)
     this.player = new Player();
-    const crewmate = createCrewmateSprite(CREW_COLORS[0]);
-    crewmate.pivot.set(11, 12); // Center the 22x24 sprite
-    this.player.addChild(crewmate);
+    if (this.mode === 'impostor') {
+      // Player is the impostor in impostor mode
+      const impostorSprite = createImpostorSprite();
+      impostorSprite.pivot.set(11, 12);
+      this.player.addChild(impostorSprite);
+    } else {
+      const crewmate = createCrewmateSprite(CREW_COLORS[0]);
+      crewmate.pivot.set(11, 12); // Center the 22x24 sprite
+      this.player.addChild(crewmate);
+    }
     this.player.moveTo(0, 0);
     this.grid.addChild(this.player);
 
@@ -108,7 +122,16 @@ export class GameScene extends Scene {
 
     // Create HUD
     this.hud = new HUD();
-    this.hud.setRule(stage.getRuleText(missionIndex));
+    if (this.mode === 'impostor') {
+      // Invert rule text for impostor mode
+      const baseRule = stage.getRuleText(missionIndex);
+      this.hud.setRule(`NOT ${baseRule}`);
+      this.hud.setModeIndicator('impostor');
+      this.hud.setProgress(0, this.grid.totalWrong, COLORS.CREW_RED);
+    } else {
+      this.hud.setRule(stage.getRuleText(missionIndex));
+      this.hud.setProgress(0, this.grid.totalCorrect, COLORS.SUCCESS_GREEN);
+    }
     this.root.addChild(this.hud);
 
     // Create scoring and lives systems
@@ -131,12 +154,17 @@ export class GameScene extends Scene {
     this.eliminationOverlay = new EliminationOverlay();
     this.root.addChild(this.eliminationOverlay);
 
-    // Determine if impostor is active for this mission
-    this.impostorEnabled =
-      stage.impostorEnabled && this.manager.save.settings.impostorEnabled;
+    if (this.mode === 'impostor') {
+      // Spawn AI crewmate as the enemy
+      this.spawnAICrewmate();
+    } else {
+      // Determine if impostor is active for this mission (crew mode only)
+      this.impostorEnabled =
+        stage.impostorEnabled && this.manager.save.settings.impostorEnabled;
 
-    if (this.impostorEnabled) {
-      this.scheduleImpostorSpawn();
+      if (this.impostorEnabled) {
+        this.scheduleImpostorSpawn();
+      }
     }
 
     // Record start time
@@ -174,8 +202,10 @@ export class GameScene extends Scene {
     // Update HUD (impostor warning pulse)
     this.hud?.update(dt);
 
-    // Handle impostor logic
-    if (this.impostorEnabled) {
+    // Handle impostor logic or AI crewmate logic
+    if (this.mode === 'impostor') {
+      this.updateAICrewmate(dt);
+    } else if (this.impostorEnabled) {
       this.updateImpostor(dt);
     }
 
@@ -189,6 +219,9 @@ export class GameScene extends Scene {
   exit(): void {
     // Remove impostor reference before destroying children
     this.removeImpostor();
+
+    // Remove AI crewmate reference
+    this.removeAICrewmate();
 
     // Remove pause overlay if showing
     if (this.pauseOverlay) {
@@ -206,6 +239,7 @@ export class GameScene extends Scene {
     this.impostorScheduled = false;
     this.impostorSpawnTimer = 0;
     this.wrongMathCount = 0;
+    this.mode = 'crew';
 
     // Temporarily disable input to prevent stale actions carrying over
     this.manager.input.setEnabled(false);
@@ -285,9 +319,18 @@ export class GameScene extends Scene {
     // Check if cell is already consumed before attempting
     const cell = this.grid.getCellAt(col, row);
     if (!cell || cell.state === 'consumed') {
-      // Already eaten -- ignore
       return;
     }
+
+    if (this.mode === 'impostor') {
+      this.eatCurrentCellImpostor(col, row);
+    } else {
+      this.eatCurrentCellCrew(col, row);
+    }
+  }
+
+  private eatCurrentCellCrew(col: number, row: number): void {
+    if (!this.grid || !this.scoring || !this.lives || !this.hud) return;
 
     const wasCorrect = this.grid.consumeCell(col, row);
 
@@ -295,11 +338,10 @@ export class GameScene extends Scene {
       this.scoring.recordCorrect();
       this.manager.sound.cellEat();
 
-      // Update HUD
       this.hud.setScore(this.scoring.score);
       this.hud.setMultiplier(this.scoring.multiplier);
+      this.hud.setProgress(this.grid.correctEaten, this.grid.totalCorrect, COLORS.SUCCESS_GREEN);
 
-      // Check win condition
       if (this.grid.isCleared()) {
         this.handleWin();
       }
@@ -309,11 +351,40 @@ export class GameScene extends Scene {
       this.wrongMathCount++;
       this.manager.sound.errorBuzz();
 
-      // Update HUD multiplier (reset on wrong answer)
       this.hud.setMultiplier(this.scoring.multiplier);
-
-      // Trigger elimination sequence
       this.triggerElimination();
+    }
+  }
+
+  private eatCurrentCellImpostor(col: number, row: number): void {
+    if (!this.grid || !this.scoring || !this.lives || !this.hud) return;
+
+    const isCorrect = this.grid.isCorrectCell(col, row);
+
+    if (!isCorrect) {
+      // Eating a wrong cell is SUCCESS in impostor mode (green flash)
+      this.grid.consumeCellWithFlash(col, row, 'correct');
+      this.scoring.recordCorrect();
+      this.manager.sound.sabotageEat();
+
+      this.hud.setScore(this.scoring.score);
+      this.hud.setMultiplier(this.scoring.multiplier);
+      this.hud.setProgress(this.grid.wrongEaten, this.grid.totalWrong, COLORS.CREW_RED);
+
+      // Check win: all wrong cells cleared
+      if (this.grid.isAllWrongCleared()) {
+        this.handleWin();
+      }
+    } else {
+      // Eating a correct cell is a MISTAKE in impostor mode (red flash)
+      this.grid.consumeCellWithFlash(col, row, 'error');
+      this.scoring.recordWrong();
+      this.lives.loseLife();
+      this.wrongMathCount++;
+      this.manager.sound.errorBuzz();
+
+      this.hud.setMultiplier(this.scoring.multiplier);
+      this.triggerElimination('voted_out');
     }
   }
 
@@ -390,7 +461,7 @@ export class GameScene extends Scene {
   // Elimination sequence
   // ---------------------------------------------------------------------------
 
-  private async triggerElimination(): Promise<void> {
+  private async triggerElimination(variant: EliminationVariant = 'eliminated'): Promise<void> {
     if (!this.eliminationOverlay || !this.hud || !this.lives) return;
 
     this.eliminationPlaying = true;
@@ -400,7 +471,7 @@ export class GameScene extends Scene {
     this.manager.sound.eliminationSting();
 
     // Play visual sequence -- shake the grid container for dramatic effect
-    await this.eliminationOverlay.play(this.grid ?? undefined);
+    await this.eliminationOverlay.play(this.grid ?? undefined, variant);
 
     // Update HUD lives display
     this.hud.setLives(this.lives.remaining, STARTING_LIVES);
@@ -412,6 +483,8 @@ export class GameScene extends Scene {
         stage: this.stage,
         missionIndex: this.missionIndex,
         score: this.scoring?.score ?? 0,
+        mode: this.mode,
+        loseReason: 'lives',
       });
     } else {
       // Resume play
@@ -436,10 +509,10 @@ export class GameScene extends Scene {
     // Apply time bonus
     this.scoring.applyTimeBonus(elapsed, this.stage.parTime);
 
-    // Calculate accuracy (only count wrong math answers, not impostor collisions)
-    const correctEaten = this.grid.correctEaten;
-    const totalAttempts = correctEaten + this.wrongMathCount;
-    const accuracy = totalAttempts > 0 ? correctEaten / totalAttempts : 1;
+    // Calculate accuracy
+    const successCount = this.mode === 'impostor' ? this.grid.wrongEaten : this.grid.correctEaten;
+    const totalAttempts = successCount + this.wrongMathCount;
+    const accuracy = totalAttempts > 0 ? successCount / totalAttempts : 1;
 
     // Play completion sound
     this.manager.sound.missionComplete();
@@ -454,6 +527,7 @@ export class GameScene extends Scene {
       maxLives: STARTING_LIVES,
       elapsed,
       parTime: this.stage.parTime,
+      mode: this.mode,
     });
   }
 
@@ -538,5 +612,80 @@ export class GameScene extends Scene {
 
     // Trigger elimination sequence
     this.triggerElimination();
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI Crewmate system (Impostor Mode)
+  // ---------------------------------------------------------------------------
+
+  private spawnAICrewmate(): void {
+    if (!this.grid || !this.player || !this.stage) return;
+
+    const { col, row } = this.player.getGridPosition();
+    this.aiCrewmate = new AICrewmate(col, row, this.stage.difficulty);
+    const sprite = createCrewmateSprite(CREW_COLORS[1]); // blue crewmate
+    sprite.pivot.set(11, 12);
+    this.aiCrewmate.addChild(sprite);
+    this.grid.addChild(this.aiCrewmate);
+  }
+
+  private removeAICrewmate(): void {
+    if (this.aiCrewmate) {
+      this.aiCrewmate.removeFromParent();
+      this.aiCrewmate.destroy({ children: true });
+      this.aiCrewmate = null;
+    }
+  }
+
+  private updateAICrewmate(dt: number): void {
+    if (!this.aiCrewmate || !this.player || !this.grid || !this.hud || !this.lives) return;
+
+    const { col: pCol, row: pRow } = this.player.getGridPosition();
+
+    // Update AI — returns true if it landed on a correct cell to consume
+    const consumed = this.aiCrewmate.update(dt, this.grid, pCol, pRow);
+
+    if (consumed) {
+      // AI silently eats a correct cell — no pause, just update progress
+      this.grid.consumeCellWithFlash(this.aiCrewmate.gridCol, this.aiCrewmate.gridRow, 'correct');
+
+      // Check if AI cleared all correct cells — player loses
+      if (this.grid.isCleared()) {
+        this.handleImpostorLose();
+        return;
+      }
+    }
+
+    // Check collision with player
+    if (this.aiCrewmate.checkCollision(pCol, pRow)) {
+      this.handleAICrewmateCatch();
+    }
+  }
+
+  private handleAICrewmateCatch(): void {
+    if (!this.lives || !this.player) return;
+
+    this.lives.loseLife();
+    this.manager.sound.errorBuzz();
+
+    // Respawn AI at edge
+    if (this.aiCrewmate) {
+      const { col, row } = this.player.getGridPosition();
+      this.aiCrewmate.respawnAtEdge(col, row);
+    }
+
+    this.triggerElimination('voted_out');
+  }
+
+  private handleImpostorLose(): void {
+    this.playing = false;
+    this.manager.input.setEnabled(false);
+    this.manager.goto('GAME_OVER', {
+      stage: this.stage,
+      missionIndex: this.missionIndex,
+      score: this.scoring?.score ?? 0,
+      mode: this.mode,
+      loseReason: 'ai_cleared',
+    });
   }
 }

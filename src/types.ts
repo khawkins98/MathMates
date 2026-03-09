@@ -1,5 +1,9 @@
 export type InputAction = 'move_up' | 'move_down' | 'move_left' | 'move_right' | 'eat' | 'sus' | 'pause';
 
+export type GameMode = 'crew' | 'impostor';
+
+export type LoseReason = 'lives' | 'ai_cleared';
+
 export type GameStateKey =
   | 'TITLE'
   | 'SELECT'
@@ -20,7 +24,6 @@ export interface StageDefinition {
   id: string;
   name: string;
   description: string;
-  icon: string;
   difficulty: 1 | 2 | 3 | 4 | 5;
   missionCount: number;
   impostorEnabled: boolean;
@@ -33,6 +36,8 @@ export interface SaveData {
   version: number;
   completedMissions: Record<string, number[]>; // stageId -> completed mission indices
   highScores: Record<string, number>; // stageId -> best score
+  impostorCompletedMissions: Record<string, number[]>; // stageId -> completed impostor mission indices
+  impostorHighScores: Record<string, number>; // stageId -> best impostor score
   settings: {
     soundEnabled: boolean;
     impostorEnabled: boolean;

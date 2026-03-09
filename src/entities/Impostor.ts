@@ -1,13 +1,10 @@
 import { Container } from 'pixi.js';
 import {
-  CELL_SIZE,
-  GUTTER,
-  GRID_COLS,
-  GRID_ROWS,
   IMPOSTOR_MOVE_INTERVAL,
   IMPOSTOR_LIFESPAN,
 } from '../constants';
-import { randomInt, pickRandom } from '../utils';
+import { pickRandom } from '../utils';
+import { gridToPixel, pickEdgeCell, getValidAdjacentCells } from './gridHelpers';
 
 const FLICKER_MIN = 0.4;
 const FLICKER_MAX = 0.8;
@@ -27,53 +24,24 @@ export class Impostor extends Container {
   }
 
   private spawnAtEdge(playerCol: number, playerRow: number): void {
-    // Build list of all edge cells
-    const edgeCells: Array<{ col: number; row: number }> = [];
-    for (let c = 0; c < GRID_COLS; c++) {
-      edgeCells.push({ col: c, row: 0 });
-      edgeCells.push({ col: c, row: GRID_ROWS - 1 });
-    }
-    for (let r = 1; r < GRID_ROWS - 1; r++) {
-      edgeCells.push({ col: 0, row: r });
-      edgeCells.push({ col: GRID_COLS - 1, row: r });
-    }
-
-    // Exclude the player's cell
-    const candidates = edgeCells.filter(
-      (c) => c.col !== playerCol || c.row !== playerRow,
-    );
-
-    const chosen = pickRandom(candidates);
+    const chosen = pickEdgeCell(playerCol, playerRow);
     this._gridCol = chosen.col;
     this._gridRow = chosen.row;
-
     this.updatePixelPosition();
   }
 
   private updatePixelPosition(): void {
-    this.x = this._gridCol * (CELL_SIZE + GUTTER) + CELL_SIZE / 2;
-    this.y = this._gridRow * (CELL_SIZE + GUTTER) + CELL_SIZE / 2;
+    const { x, y } = gridToPixel(this._gridCol, this._gridRow);
+    this.x = x;
+    this.y = y;
   }
 
   private moveToRandomAdjacent(): void {
-    const directions: Array<{ dc: number; dr: number }> = [
-      { dc: 0, dr: -1 }, // up
-      { dc: 0, dr: 1 },  // down
-      { dc: -1, dr: 0 }, // left
-      { dc: 1, dr: 0 },  // right
-    ];
-
-    // Filter to valid adjacent cells (stay within grid)
-    const valid = directions.filter(({ dc, dr }) => {
-      const nc = this._gridCol + dc;
-      const nr = this._gridRow + dr;
-      return nc >= 0 && nc < GRID_COLS && nr >= 0 && nr < GRID_ROWS;
-    });
-
+    const valid = getValidAdjacentCells(this._gridCol, this._gridRow);
     if (valid.length > 0) {
-      const { dc, dr } = pickRandom(valid);
-      this._gridCol += dc;
-      this._gridRow += dr;
+      const chosen = pickRandom(valid);
+      this._gridCol = chosen.col;
+      this._gridRow = chosen.row;
       this.updatePixelPosition();
     }
   }

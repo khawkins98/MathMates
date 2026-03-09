@@ -126,4 +126,11 @@ export class SoundManager {
     if (this._muted) return;
     this.playTone('square', 500, 700, 0.05);
   }
+
+  /** Descending sweep for impostor eating a wrong cell (sabotage success). */
+  sabotageEat(): void {
+    if (this._muted) return;
+    this.playTone('square', 800, 400, 0.1);
+  }
+
 }

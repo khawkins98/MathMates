@@ -6,7 +6,7 @@ import { createStar } from '@/sprites/StarIcon';
 import { createPadlock } from '@/sprites/PadlockIcon';
 import { getSortedStages } from '@/stages/index';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
-import type { StageDefinition } from '@/types';
+import type { StageDefinition, GameMode } from '@/types';
 
 const CARD_WIDTH = 220;
 const CARD_HEIGHT = 70;
@@ -21,6 +21,10 @@ export class SelectScene extends Scene {
   private detailPanel: Container | null = null;
   private launchButton: ButtonSprite | null = null;
   private selectedStage: StageDefinition | null = null;
+  private selectedMode: GameMode = 'crew';
+  private panelBorder: Graphics | null = null;
+  private crewBtn: ButtonSprite | null = null;
+  private impostorBtn: ButtonSprite | null = null;
 
   constructor(manager: SceneManager) {
     super();
@@ -138,17 +142,6 @@ export class SelectScene extends Scene {
       padlock.y = (CARD_HEIGHT - 18) / 2;
       card.addChild(padlock);
       card.alpha = 0.5;
-    } else {
-      // Stage icon (emoji-like text)
-      const iconStyle = new TextStyle({
-        fontFamily: 'monospace',
-        fontSize: 20,
-        fill: COLORS.STAR_WHITE,
-      });
-      const iconText = new Text({ text: stage.icon, style: iconStyle });
-      iconText.x = CARD_WIDTH - 35;
-      iconText.y = (CARD_HEIGHT - 24) / 2;
-      card.addChild(iconText);
     }
 
     return card;
@@ -156,6 +149,7 @@ export class SelectScene extends Scene {
 
   private selectStage(stage: StageDefinition): void {
     this.selectedStage = stage;
+    this.selectedMode = 'crew';
 
     if (!this.detailPanel) return;
 
@@ -164,14 +158,10 @@ export class SelectScene extends Scene {
     this.detailPanel.visible = true;
 
     // Background panel at bottom
-    const panelBg = new Graphics();
     const panelY = GAME_HEIGHT - 80;
-    panelBg.roundRect(10, panelY, GAME_WIDTH - 20, 70, 6).fill(0x2a2f55);
-    panelBg.roundRect(10, panelY, GAME_WIDTH - 20, 70, 6).stroke({
-      width: 1,
-      color: COLORS.VISOR_CYAN,
-    });
-    this.detailPanel.addChild(panelBg);
+    this.panelBorder = new Graphics();
+    this.drawPanelBorder(panelY, COLORS.VISOR_CYAN);
+    this.detailPanel.addChild(this.panelBorder);
 
     // Description
     const descStyle = new TextStyle({
@@ -183,7 +173,7 @@ export class SelectScene extends Scene {
     });
     const descText = new Text({ text: stage.description, style: descStyle });
     descText.x = 20;
-    descText.y = panelY + 10;
+    descText.y = panelY + 8;
     this.detailPanel.addChild(descText);
 
     // Mission count
@@ -197,8 +187,28 @@ export class SelectScene extends Scene {
       style: missionStyle,
     });
     missionText.x = 20;
-    missionText.y = panelY + 45;
+    missionText.y = panelY + 30;
     this.detailPanel.addChild(missionText);
+
+    // Mode toggle buttons
+    const hasCrewProgress = this.manager.save.hasCrewProgress(stage.id);
+
+    this.crewBtn = new ButtonSprite('Crew', 55, 20, COLORS.VISOR_CYAN);
+    this.crewBtn.x = 20;
+    this.crewBtn.y = panelY + 48;
+    this.crewBtn.onClick = () => this.setMode('crew');
+    this.detailPanel.addChild(this.crewBtn);
+
+    const impostorColor = hasCrewProgress ? COLORS.HULL_GREY : 0x333355;
+    this.impostorBtn = new ButtonSprite('Impostor', 65, 20, impostorColor);
+    this.impostorBtn.x = 82;
+    this.impostorBtn.y = panelY + 48;
+    if (hasCrewProgress) {
+      this.impostorBtn.onClick = () => this.setMode('impostor');
+    } else {
+      this.impostorBtn.alpha = 0.4;
+    }
+    this.detailPanel.addChild(this.impostorBtn);
 
     // Launch Mission button
     this.launchButton = new ButtonSprite('Launch Mission', 130, 34, COLORS.SUCCESS_GREEN);
@@ -207,9 +217,35 @@ export class SelectScene extends Scene {
     this.launchButton.onClick = () => {
       if (!this.selectedStage) return;
       this.manager.sound.buttonClick();
-      this.manager.goto('BRIEFING', { stage: this.selectedStage, missionIndex: 0 });
+      this.manager.goto('BRIEFING', {
+        stage: this.selectedStage,
+        missionIndex: 0,
+        mode: this.selectedMode,
+      });
     };
     this.detailPanel.addChild(this.launchButton);
+  }
+
+  private setMode(mode: GameMode): void {
+    if (this.selectedMode === mode) return;
+    this.selectedMode = mode;
+    this.manager.sound.buttonClick();
+
+    const panelY = GAME_HEIGHT - 80;
+    const borderColor = mode === 'impostor' ? COLORS.CREW_RED : COLORS.VISOR_CYAN;
+    if (this.panelBorder) {
+      this.panelBorder.clear();
+      this.drawPanelBorder(panelY, borderColor);
+    }
+  }
+
+  private drawPanelBorder(panelY: number, borderColor: number): void {
+    if (!this.panelBorder) return;
+    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, 70, 6).fill(0x2a2f55);
+    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, 70, 6).stroke({
+      width: 1,
+      color: borderColor,
+    });
   }
 
   update(_dt: number): void {
@@ -222,5 +258,9 @@ export class SelectScene extends Scene {
     this.detailPanel = null;
     this.launchButton = null;
     this.selectedStage = null;
+    this.selectedMode = 'crew';
+    this.panelBorder = null;
+    this.crewBtn = null;
+    this.impostorBtn = null;
   }
 }
