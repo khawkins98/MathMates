@@ -40,3 +40,12 @@ export const COUNTDOWN_STEP_MS = 1000;
 export const IMPOSTOR_MOVE_INTERVAL = 1500; // ms between moves
 export const IMPOSTOR_LIFESPAN = 10000; // ms before despawn
 export const IMPOSTOR_SPAWN_INTERVAL = 15000; // ms between spawns
+
+// AI Crewmate (Impostor Mode)
+export const AI_MOVE_INTERVAL_BASE = 2000; // ms between moves at difficulty 1
+export const AI_MOVE_INTERVAL_MIN = 1200; // ms between moves at difficulty 5
+export const AI_CHASE_DISTANCE = 2; // Manhattan distance to trigger chase behavior
+export const AI_CREWMATE_COUNT = 3;
+export const POINTS_PER_ELIMINATION = 25;
+export const AI_DWELL_DURATION = 1; // multiplier of moveInterval before consuming
+export const AI_EJECT_DURATION = 400; // ms

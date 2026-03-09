@@ -33,7 +33,7 @@ export class Cell extends Container {
     this.valueText = new Text({ text: '', style: textStyle });
     this.valueText.anchor.set(0.5);
     this.valueText.x = CELL_SIZE / 2;
-    this.valueText.y = CELL_SIZE / 2;
+    this.valueText.y = CELL_SIZE / 2 - 6;
     this.addChild(this.valueText);
 
     // Sus marker - small thumbs-down in top-right corner

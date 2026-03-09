@@ -1,13 +1,15 @@
 import type { SaveData } from '@/types';
 
 const STORAGE_KEY = 'mathmates_save';
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 function defaultSave(): SaveData {
   return {
     version: CURRENT_VERSION,
     completedMissions: {},
     highScores: {},
+    impostorCompletedMissions: {},
+    impostorHighScores: {},
     settings: {
       soundEnabled: true,
       impostorEnabled: true,
@@ -49,8 +51,16 @@ export class SaveManager {
     );
   }
 
-  private migrate(_old: SaveData): SaveData {
-    // v1 is the only version, so just reset
+  private migrate(old: SaveData): SaveData {
+    if (old.version === 1) {
+      // v1 -> v2: add impostor mode save slots
+      return {
+        ...old,
+        version: 2,
+        impostorCompletedMissions: {},
+        impostorHighScores: {},
+      } as SaveData;
+    }
     return defaultSave();
   }
 
@@ -63,17 +73,7 @@ export class SaveManager {
   }
 
   completeMission(stageId: string, missionIndex: number, score: number): void {
-    if (!this.data.completedMissions[stageId]) {
-      this.data.completedMissions[stageId] = [];
-    }
-    if (!this.data.completedMissions[stageId].includes(missionIndex)) {
-      this.data.completedMissions[stageId].push(missionIndex);
-    }
-    const prev = this.data.highScores[stageId] ?? 0;
-    if (score > prev) {
-      this.data.highScores[stageId] = score;
-    }
-    this.persist();
+    this.recordMission(this.data.completedMissions, this.data.highScores, stageId, missionIndex, score);
   }
 
   getCompletedMissions(stageId: string): number[] {
@@ -114,5 +114,43 @@ export class SaveManager {
     if (this.data.settings.unlockAll) return true;
     if (difficulty <= 1) return true;
     return this.hasCompletedAnyStageAtDifficulty(stages, difficulty - 1);
+  }
+
+  completeImpostorMission(stageId: string, missionIndex: number, score: number): void {
+    this.recordMission(this.data.impostorCompletedMissions, this.data.impostorHighScores, stageId, missionIndex, score);
+  }
+
+  private recordMission(
+    missions: Record<string, number[]>,
+    scores: Record<string, number>,
+    stageId: string,
+    missionIndex: number,
+    score: number,
+  ): void {
+    if (!missions[stageId]) {
+      missions[stageId] = [];
+    }
+    if (!missions[stageId].includes(missionIndex)) {
+      missions[stageId].push(missionIndex);
+    }
+    const prev = scores[stageId] ?? 0;
+    if (score > prev) {
+      scores[stageId] = score;
+    }
+    this.persist();
+  }
+
+  getImpostorCompletedMissions(stageId: string): number[] {
+    return this.data.impostorCompletedMissions[stageId] ?? [];
+  }
+
+  getImpostorHighScore(stageId: string): number {
+    return this.data.impostorHighScores[stageId] ?? 0;
+  }
+
+  /** Returns true if at least one crew-mode mission has been completed for this stage. */
+  hasCrewProgress(stageId: string): boolean {
+    const missions = this.data.completedMissions[stageId];
+    return !!missions && missions.length > 0;
   }
 }

@@ -4,7 +4,6 @@ import { shuffle, randomInt } from '../utils';
 interface TimesTableOpts {
   name: string;
   description: string;
-  icon: string;
   difficulty: 1 | 2 | 3 | 4 | 5;
   missionCount: number;
   impostorEnabled: boolean;
@@ -19,7 +18,6 @@ export function createTimesTableStage(
     id: `times-${n}`,
     name: opts.name,
     description: opts.description,
-    icon: opts.icon,
     difficulty: opts.difficulty,
     missionCount: opts.missionCount,
     impostorEnabled: opts.impostorEnabled,
@@ -96,7 +94,6 @@ export function createTimesTableStage(
 export const times2 = createTimesTableStage(2, {
   name: 'Times Table: 2',
   description: 'Find products equal to 2 times a number.',
-  icon: '\u00d72',
   difficulty: 2,
   missionCount: 5,
   impostorEnabled: false,
@@ -106,7 +103,6 @@ export const times2 = createTimesTableStage(2, {
 export const times5 = createTimesTableStage(5, {
   name: 'Times Table: 5',
   description: 'Find products equal to 5 times a number.',
-  icon: '\u00d75',
   difficulty: 3,
   missionCount: 5,
   impostorEnabled: true,
@@ -117,7 +113,6 @@ export const times10 = createTimesTableStage(10, {
   name: 'Times Table: 10',
   description: 'Find products equal to 10 times a number.',
   // 10× table is the easiest — difficulty 2, no impostor
-  icon: '\u00d710',
   difficulty: 2,
   missionCount: 5,
   impostorEnabled: false,

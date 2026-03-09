@@ -7,7 +7,6 @@ export const sub1d: StageDefinition = {
   id: 'sub-1d',
   name: 'Single-Digit Subtraction',
   description: 'Find differences that equal the target number.',
-  icon: '-1d',
   difficulty: 2,
   missionCount: TARGETS.length,
   impostorEnabled: false,

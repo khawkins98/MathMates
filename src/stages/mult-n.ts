@@ -4,7 +4,6 @@ import { shuffle, randomInt } from '../utils';
 interface MultiplesStageOpts {
   name: string;
   description: string;
-  icon: string;
   difficulty: 1 | 2 | 3 | 4 | 5;
   missionCount: number;
   impostorEnabled: boolean;
@@ -19,7 +18,6 @@ export function createMultiplesStage(
     id: `mult-${n}`,
     name: opts.name,
     description: opts.description,
-    icon: opts.icon,
     difficulty: opts.difficulty,
     missionCount: opts.missionCount,
     impostorEnabled: opts.impostorEnabled,
@@ -86,7 +84,6 @@ export function createMultiplesStage(
 export const mult2 = createMultiplesStage(2, {
   name: 'Multiples of 2',
   description: 'Find all even numbers on the grid.',
-  icon: '2x',
   difficulty: 1,
   missionCount: 5,
   impostorEnabled: false,
@@ -96,7 +93,6 @@ export const mult2 = createMultiplesStage(2, {
 export const mult3 = createMultiplesStage(3, {
   name: 'Multiples of 3',
   description: 'Spot the multiples of 3.',
-  icon: '3x',
   difficulty: 2,
   missionCount: 5,
   impostorEnabled: false,
@@ -106,7 +102,6 @@ export const mult3 = createMultiplesStage(3, {
 export const mult5 = createMultiplesStage(5, {
   name: 'Multiples of 5',
   description: 'Find all multiples of 5.',
-  icon: '5x',
   difficulty: 1,
   missionCount: 5,
   impostorEnabled: false,
@@ -116,7 +111,6 @@ export const mult5 = createMultiplesStage(5, {
 export const mult10 = createMultiplesStage(10, {
   name: 'Multiples of 10',
   description: 'Find all multiples of 10.',
-  icon: '10x',
   difficulty: 1,
   missionCount: 5,
   impostorEnabled: false,

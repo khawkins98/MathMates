@@ -7,6 +7,7 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  base: process.env.GITHUB_ACTIONS ? '/MathMates/' : '/',
   build: {
     target: 'es2022',
   },

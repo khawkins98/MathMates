@@ -19,34 +19,45 @@ export function createImpostorSprite(): Graphics {
   // Bean-shaped body (darker tint)
   gfx.roundRect(3, 0, 16, 20, 6).fill(BODY_TINT);
 
-  // Visor base (same shape as crewmate)
-  gfx.ellipse(13, 7, 6, 5).fill(COLORS.VISOR_CYAN);
+  // Visor — only upper portion visible as "eyes"
+  gfx.ellipse(13, 6, 6, 4).fill(COLORS.VISOR_CYAN);
+  // Visor shine
+  gfx.ellipse(15, 4, 2, 1.5).fill(0x9fffff);
 
-  // Top teeth (drawn first so bottom teeth overlap correctly)
-  gfx.moveTo(7, 8);
-  gfx.lineTo(9, 5);
-  gfx.lineTo(11, 8);
-  gfx.lineTo(13, 4);
-  gfx.lineTo(15, 8);
-  gfx.lineTo(17, 5);
-  gfx.lineTo(19, 8);
-  gfx.lineTo(19, 4);
-  gfx.lineTo(7, 4);
+  // Dark mouth opening across lower visor area
+  gfx.rect(8, 9, 11, 4).fill(0x220000);
+
+  // Top teeth (pointing down into mouth)
+  gfx.moveTo(8, 9);
+  gfx.lineTo(10, 9);
+  gfx.lineTo(10, 11);
   gfx.closePath();
-  gfx.fill(0x220000);
+  gfx.fill(0xdddddd);
 
-  // Jagged mouth teeth (overlaid on bottom half of visor)
-  gfx.moveTo(7, 8);
-  gfx.lineTo(9, 11);
-  gfx.lineTo(11, 8);
-  gfx.lineTo(13, 12);
-  gfx.lineTo(15, 8);
+  gfx.moveTo(12, 9);
+  gfx.lineTo(14, 9);
+  gfx.lineTo(13, 11);
+  gfx.closePath();
+  gfx.fill(0xdddddd);
+
+  gfx.moveTo(16, 9);
+  gfx.lineTo(18, 9);
   gfx.lineTo(17, 11);
-  gfx.lineTo(19, 8);
-  gfx.lineTo(19, 12);
-  gfx.lineTo(7, 12);
   gfx.closePath();
-  gfx.fill(0x220000);
+  gfx.fill(0xdddddd);
+
+  // Bottom teeth (pointing up into mouth)
+  gfx.moveTo(9, 13);
+  gfx.lineTo(11, 13);
+  gfx.lineTo(10, 11);
+  gfx.closePath();
+  gfx.fill(0xdddddd);
+
+  gfx.moveTo(13, 13);
+  gfx.lineTo(15, 13);
+  gfx.lineTo(14, 11);
+  gfx.closePath();
+  gfx.fill(0xdddddd);
 
   // Left leg
   gfx.rect(5, 19, 5, 4).fill(BODY_TINT);

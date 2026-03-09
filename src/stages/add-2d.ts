@@ -7,7 +7,6 @@ export const add2d: StageDefinition = {
   id: 'add-2d',
   name: 'Two-Digit Addition',
   description: 'Find sums that equal the target. At least one number is two digits.',
-  icon: '+2d',
   difficulty: 3,
   missionCount: TARGETS.length,
   impostorEnabled: true,

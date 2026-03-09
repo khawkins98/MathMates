@@ -1,7 +1,10 @@
 import { Container, Graphics } from 'pixi.js';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, ELIMINATION_DURATION } from '@/constants';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
+import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { Easing } from '@/core/Easing';
+
+export type EliminationVariant = 'eliminated' | 'voted_out';
 
 /** Duration breakdown in ms. */
 const FLASH_DURATION = 300;
@@ -16,11 +19,17 @@ const HOLD_DURATION = ELIMINATION_DURATION - FLASH_DURATION - SPRITE_APPEAR_DURA
  *   2. Impostor sprite scale-bounces into center (0 -> 1.2 -> 1.0)
  *   3. Screen shake (container oscillation)
  *   4. Hold briefly, then resolve
+ *
+ * Supports two variants:
+ * - 'eliminated': shows impostor sprite (crew mode default)
+ * - 'voted_out': shows blue crewmate sprite (impostor mode — you got caught)
  */
 export class EliminationOverlay extends Container {
   private flash: Graphics;
-  private impostorContainer: Container;
+  private spriteContainer: Container;
   private impostor: Container;
+  private crewmate: Container;
+  private activeSprite: Container;
   private elapsed = 0;
   private playing = false;
   private resolve: (() => void) | null = null;
@@ -39,24 +48,33 @@ export class EliminationOverlay extends Container {
     this.flash.alpha = 0;
     this.addChild(this.flash);
 
-    // Impostor centered
-    this.impostorContainer = new Container();
-    this.impostorContainer.x = GAME_WIDTH / 2;
-    this.impostorContainer.y = GAME_HEIGHT / 2;
-    this.addChild(this.impostorContainer);
+    // Sprite container centered
+    this.spriteContainer = new Container();
+    this.spriteContainer.x = GAME_WIDTH / 2;
+    this.spriteContainer.y = GAME_HEIGHT / 2;
+    this.addChild(this.spriteContainer);
 
+    // Impostor sprite (for 'eliminated' variant)
     this.impostor = createImpostorSprite();
-    // Center the impostor around 0,0 for scaling pivot
     this.impostor.pivot.set(11, 12);
     this.impostor.scale.set(0);
-    this.impostorContainer.addChild(this.impostor);
+    this.spriteContainer.addChild(this.impostor);
+
+    // Crewmate sprite (for 'voted_out' variant)
+    this.crewmate = createCrewmateSprite(CREW_COLORS[1]); // blue
+    this.crewmate.pivot.set(11, 12);
+    this.crewmate.scale.set(0);
+    this.crewmate.visible = false;
+    this.spriteContainer.addChild(this.crewmate);
+
+    this.activeSprite = this.impostor;
   }
 
   /**
    * Plays the elimination sequence.
    * Optionally accepts a parent container to apply screen shake to.
    */
-  play(shakeTarget?: Container): Promise<void> {
+  play(shakeTarget?: Container, variant: EliminationVariant = 'eliminated'): Promise<void> {
     return new Promise((resolve) => {
       this.resolve = resolve;
       this.shakeTarget = shakeTarget ?? null;
@@ -66,7 +84,18 @@ export class EliminationOverlay extends Container {
       this.playing = true;
       this.visible = true;
       this.flash.alpha = 0.6;
-      this.impostor.scale.set(0);
+
+      // Toggle which sprite to show
+      if (variant === 'voted_out') {
+        this.impostor.visible = false;
+        this.crewmate.visible = true;
+        this.activeSprite = this.crewmate;
+      } else {
+        this.impostor.visible = true;
+        this.crewmate.visible = false;
+        this.activeSprite = this.impostor;
+      }
+      this.activeSprite.scale.set(0);
     });
   }
 
@@ -88,7 +117,7 @@ export class EliminationOverlay extends Container {
       this.flash.alpha = 0;
     }
 
-    // Phase 2: Impostor scale-bounce (FLASH_DURATION -> FLASH_DURATION + SPRITE_APPEAR_DURATION)
+    // Phase 2: Sprite scale-bounce (FLASH_DURATION -> FLASH_DURATION + SPRITE_APPEAR_DURATION)
     const spriteStart = FLASH_DURATION;
     const spriteEnd = spriteStart + SPRITE_APPEAR_DURATION;
     if (t >= spriteStart && t <= spriteEnd) {
@@ -102,9 +131,9 @@ export class EliminationOverlay extends Container {
         const p = (progress - 0.7) / 0.3;
         scale = 1.2 - 0.2 * Easing.easeOutQuad(p);
       }
-      this.impostor.scale.set(scale * 3); // scale up 3x for visibility
+      this.activeSprite.scale.set(scale * 3); // scale up 3x for visibility
     } else if (t > spriteEnd) {
-      this.impostor.scale.set(3);
+      this.activeSprite.scale.set(3);
     }
 
     // Phase 3: Screen shake (runs alongside phases 1-2)
@@ -125,7 +154,7 @@ export class EliminationOverlay extends Container {
       this.playing = false;
       this.visible = false;
       this.flash.alpha = 0;
-      this.impostor.scale.set(0);
+      this.activeSprite.scale.set(0);
 
       if (this.shakeTarget) {
         this.shakeTarget.x = this.shakeOriginX;

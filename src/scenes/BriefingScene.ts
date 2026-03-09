@@ -4,11 +4,12 @@ import { SceneManager } from '@/core/SceneManager';
 import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { Easing } from '@/core/Easing';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, COUNTDOWN_STEP_MS, STARTING_LIVES } from '@/constants';
-import type { StageDefinition } from '@/types';
+import type { StageDefinition, GameMode } from '@/types';
 
 interface BriefingData {
   stage: StageDefinition;
   missionIndex: number;
+  mode?: GameMode;
 }
 
 const enum CountdownPhase {
@@ -50,12 +51,16 @@ export class BriefingScene extends Scene {
     this.ruleContainer = new Container();
     this.root.addChild(this.ruleContainer);
 
+    const mode = this.data.mode ?? 'crew';
+    const isImpostor = mode === 'impostor';
+    const accentColor = isImpostor ? COLORS.CREW_RED : COLORS.VISOR_CYAN;
+
     // Stage name
     const nameStyle = new TextStyle({
       fontFamily: 'monospace',
       fontSize: 18,
       fontWeight: 'bold',
-      fill: COLORS.VISOR_CYAN,
+      fill: accentColor,
       align: 'center',
     });
     const nameText = new Text({
@@ -67,10 +72,14 @@ export class BriefingScene extends Scene {
     nameText.y = GAME_HEIGHT / 2 - 80;
     this.ruleContainer.addChild(nameText);
 
-    // Rule text
+    // Rule text — invert for impostor mode
+    const baseRule = this.data.stage.getRuleText(this.data.missionIndex);
+    const ruleDisplay = isImpostor
+      ? `Sabotage! Eat everything that ISN'T:\n${baseRule}`
+      : baseRule;
     const ruleStyle = new TextStyle({
       fontFamily: 'monospace',
-      fontSize: 22,
+      fontSize: isImpostor ? 18 : 22,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,
       align: 'center',
@@ -78,13 +87,31 @@ export class BriefingScene extends Scene {
       wordWrapWidth: GAME_WIDTH - 80,
     });
     const ruleText = new Text({
-      text: this.data.stage.getRuleText(this.data.missionIndex),
+      text: ruleDisplay,
       style: ruleStyle,
     });
     ruleText.anchor.set(0.5);
     ruleText.x = GAME_WIDTH / 2;
     ruleText.y = GAME_HEIGHT / 2 - 20;
     this.ruleContainer.addChild(ruleText);
+
+    // Flavor text for impostor mode
+    if (isImpostor) {
+      const flavorStyle = new TextStyle({
+        fontFamily: 'monospace',
+        fontSize: 11,
+        fill: COLORS.CREW_RED,
+        align: 'center',
+      });
+      const flavorText = new Text({
+        text: 'You are the impostor. Eat WRONG answers to sabotage!\nCatch crewmates on wrong cells to eject them!',
+        style: flavorStyle,
+      });
+      flavorText.anchor.set(0.5);
+      flavorText.x = GAME_WIDTH / 2;
+      flavorText.y = GAME_HEIGHT / 2 + 25;
+      this.ruleContainer.addChild(flavorText);
+    }
 
     // Mini crewmate row (showing life count)
     const crewRow = new Container();
@@ -213,6 +240,7 @@ export class BriefingScene extends Scene {
           this.manager.goto('PLAYING', {
             stage: this.data.stage,
             missionIndex: this.data.missionIndex,
+            mode: this.data.mode ?? 'crew',
           });
         }
         break;

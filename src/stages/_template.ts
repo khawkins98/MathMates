@@ -4,7 +4,7 @@
  * Copy this file and modify it to create a new stage for MathMates.
  *
  * A stage defines:
- *  - Metadata (id, name, description, icon, difficulty)
+ *  - Metadata (id, name, description, difficulty)
  *  - How many missions it contains
  *  - Whether impostors appear
  *  - A par time for the time bonus
@@ -26,9 +26,6 @@ export const myStage: StageDefinition = {
 
   /** Short description shown under the name. */
   description: 'A brief explanation of what the player must do.',
-
-  /** Icon string displayed on the stage select button. */
-  icon: '??',
 
   /** Difficulty from 1 (easiest) to 5 (hardest). Affects sort order. */
   difficulty: 1,
