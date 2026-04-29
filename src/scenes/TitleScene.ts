@@ -8,10 +8,9 @@ import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { Container } from 'pixi.js';
 
 const SPAWN_MARGIN = 60;
-const CREW_COUNT = 8;
-// px/ms — slow enough to feel like zero-gravity drift
-const SPEED_MIN = 0.018;
-const SPEED_MAX = 0.048;
+// px/ms — slow zero-gravity drift
+const SPEED_MIN = 0.016;
+const SPEED_MAX = 0.044;
 
 interface DriftingCrewmate {
   sprite: Container;
@@ -19,10 +18,11 @@ interface DriftingCrewmate {
   y: number;
   vx: number;
   vy: number;
-  baseScale: number;
-  scalePhase: number;
-  scaleSpeed: number; // oscillations/ms
-  rotSpeed: number;   // radians/ms
+  /** 0 = far/tiny/invisible, 1 = close/large/opaque */
+  depth: number;
+  /** how fast depth changes per ms — negative = receding (big→small), positive = approaching (small→big) */
+  depthRate: number;
+  rotSpeed: number; // rad/ms
 }
 
 export class TitleScene extends Scene {
@@ -54,10 +54,9 @@ export class TitleScene extends Scene {
     title.y = 60;
     this.root.addChild(title);
 
-    // Drifting crewmates — spawn distributed across the screen initially
-    for (let i = 0; i < CREW_COUNT; i++) {
-      const color = CREW_COLORS[i % CREW_COLORS.length];
-      const sprite = createCrewmateSprite(color);
+    // One crewmate per colour, each drifting at a different depth
+    for (let i = 0; i < CREW_COLORS.length; i++) {
+      const sprite = createCrewmateSprite(CREW_COLORS[i]);
       this.root.addChild(sprite);
 
       const cm: DriftingCrewmate = {
@@ -66,12 +65,11 @@ export class TitleScene extends Scene {
         y: Math.random() * GAME_HEIGHT,
         vx: 0,
         vy: 0,
-        baseScale: 0.4 + Math.random() * 0.8,   // 0.4–1.2× depth variety
-        scalePhase: Math.random() * Math.PI * 2,
-        scaleSpeed: 0.0004 + Math.random() * 0.0006,
-        rotSpeed: (Math.random() - 0.5) * 0.001,
+        depth: Math.random(), // stagger initial depths so they don't all arrive together
+        depthRate: 0,
+        rotSpeed: (Math.random() - 0.5) * 0.0008,
       };
-      this._setRandomVelocity(cm);
+      this._setDriftDirection(cm);
       this.crewmates.push(cm);
     }
 
@@ -107,24 +105,23 @@ export class TitleScene extends Scene {
     for (const cm of this.crewmates) {
       cm.x += cm.vx * dt;
       cm.y += cm.vy * dt;
+      cm.depth += cm.depthRate * dt;
       cm.sprite.rotation += cm.rotSpeed * dt;
 
-      // Scale oscillates with abs(sin) — simulates tumbling in 3D (face-on → edge-on)
-      const tumble = 0.35 + 0.65 * Math.abs(Math.sin(cm.scalePhase + this.elapsed * cm.scaleSpeed));
-      const s = cm.baseScale * tumble;
-      cm.sprite.scale.set(s);
-      // Dimmer when turned away (small) — reinforces depth illusion
-      cm.sprite.alpha = 0.4 + 0.6 * (tumble);
-
+      // Scale 0.2→1.3, alpha 0.1→0.95 — all driven by depth linearly
+      const d = Math.max(0, Math.min(1, cm.depth));
+      cm.sprite.scale.set(0.2 + d * 1.1);
+      cm.sprite.alpha = 0.1 + d * 0.85;
       cm.sprite.x = cm.x;
       cm.sprite.y = cm.y;
 
-      // Respawn from a random edge once fully off-screen
-      if (
+      // Fully receded (faded to nothing) or drifted off-screen → respawn
+      const offScreen =
         cm.x < -SPAWN_MARGIN || cm.x > GAME_WIDTH + SPAWN_MARGIN ||
-        cm.y < -SPAWN_MARGIN || cm.y > GAME_HEIGHT + SPAWN_MARGIN
-      ) {
-        this._respawnFromEdge(cm);
+        cm.y < -SPAWN_MARGIN || cm.y > GAME_HEIGHT + SPAWN_MARGIN;
+
+      if (cm.depth <= 0 || offScreen) {
+        this._respawn(cm);
       }
     }
 
@@ -143,45 +140,40 @@ export class TitleScene extends Scene {
     this.startButton = null;
   }
 
-  private _setRandomVelocity(cm: DriftingCrewmate): void {
+  /** Assign a random drift velocity and depth-change direction to a crewmate. */
+  private _setDriftDirection(cm: DriftingCrewmate): void {
     const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
     const angle = Math.random() * Math.PI * 2;
     cm.vx = Math.cos(angle) * speed;
     cm.vy = Math.sin(angle) * speed;
+    // depth changes at ~0.3–0.7 per second — randomly approaching or receding
+    const rate = (0.0003 + Math.random() * 0.0004);
+    cm.depthRate = Math.random() < 0.5 ? rate : -rate;
   }
 
-  private _respawnFromEdge(cm: DriftingCrewmate): void {
+  /** Respawn a crewmate from a random screen edge, approaching from afar. */
+  private _respawn(cm: DriftingCrewmate): void {
     const edge = Math.floor(Math.random() * 4);
     const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
 
     switch (edge) {
-      case 0: // top → drift downward
-        cm.x = Math.random() * GAME_WIDTH;
-        cm.y = -SPAWN_MARGIN;
-        cm.vx = (Math.random() - 0.5) * speed;
-        cm.vy = speed;
-        break;
-      case 1: // bottom → drift upward
-        cm.x = Math.random() * GAME_WIDTH;
-        cm.y = GAME_HEIGHT + SPAWN_MARGIN;
-        cm.vx = (Math.random() - 0.5) * speed;
-        cm.vy = -speed;
-        break;
-      case 2: // left → drift right
-        cm.x = -SPAWN_MARGIN;
-        cm.y = Math.random() * GAME_HEIGHT;
-        cm.vx = speed;
-        cm.vy = (Math.random() - 0.5) * speed;
-        break;
-      default: // right → drift left
-        cm.x = GAME_WIDTH + SPAWN_MARGIN;
-        cm.y = Math.random() * GAME_HEIGHT;
-        cm.vx = -speed;
-        cm.vy = (Math.random() - 0.5) * speed;
+      case 0:
+        cm.x = Math.random() * GAME_WIDTH; cm.y = -SPAWN_MARGIN;
+        cm.vx = (Math.random() - 0.5) * speed; cm.vy = speed; break;
+      case 1:
+        cm.x = Math.random() * GAME_WIDTH; cm.y = GAME_HEIGHT + SPAWN_MARGIN;
+        cm.vx = (Math.random() - 0.5) * speed; cm.vy = -speed; break;
+      case 2:
+        cm.x = -SPAWN_MARGIN; cm.y = Math.random() * GAME_HEIGHT;
+        cm.vx = speed; cm.vy = (Math.random() - 0.5) * speed; break;
+      default:
+        cm.x = GAME_WIDTH + SPAWN_MARGIN; cm.y = Math.random() * GAME_HEIGHT;
+        cm.vx = -speed; cm.vy = (Math.random() - 0.5) * speed;
     }
 
-    cm.baseScale = 0.4 + Math.random() * 0.8;
-    cm.scalePhase = Math.random() * Math.PI * 2;
-    cm.rotSpeed = (Math.random() - 0.5) * 0.001;
+    // Always start far away (depth=0) and drift closer
+    cm.depth = 0;
+    cm.depthRate = 0.0003 + Math.random() * 0.0004;
+    cm.rotSpeed = (Math.random() - 0.5) * 0.0008;
   }
 }

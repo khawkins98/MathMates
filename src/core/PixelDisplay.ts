@@ -100,18 +100,17 @@ export class PixelDisplay {
     const texture = RenderTexture.create({ width: texW, height: texH });
     texture.source.scaleMode = 'nearest';
 
-    const displaySprite = new Sprite(texture);
-    // Scale the sprite to fill the full logical canvas.
-    // Use separate x/y scale to tolerate imperfect division.
-    displaySprite.scale.set(w / texW, h / texH);
-    displaySprite.eventMode = 'none'; // visuals only — don't intercept events
-    app.stage.addChild(displaySprite);
-
-    // gameContainer must also live in the display tree so PixiJS's event system
-    // can traverse it. Set renderable=false so it doesn't draw itself visually
-    // (the RenderTexture ticker call above handles all visuals).
-    this.gameContainer.renderable = false;
+    // gameContainer must be in the display tree for PixiJS's event system to
+    // traverse it. Add it BEFORE displaySprite so it renders behind; the
+    // displaySprite (fully opaque upscaled texture) covers it visually.
+    // Setting renderable=false would also suppress hit-testing (EventBoundary
+    // line 306 checks renderable), so we leave it at default true.
     app.stage.addChild(this.gameContainer);
+
+    const displaySprite = new Sprite(texture);
+    displaySprite.scale.set(w / texW, h / texH);
+    displaySprite.eventMode = 'none'; // pass-through — events reach gameContainer below
+    app.stage.addChild(displaySprite);
 
     // Pre-built down-scale matrix — avoids allocating one per frame.
     const downMatrix = new Matrix().scale(1 / scale, 1 / scale);
