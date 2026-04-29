@@ -26,6 +26,7 @@ import {
   AI_CREWMATE_COUNT,
   AI_EJECT_DURATION,
   COLORS,
+  PIXEL_FONT,
 } from '@/constants';
 import type { StageDefinition, InputAction, GameMode } from '@/types';
 import { gameLog } from '@/core/GameLogger';
@@ -33,7 +34,7 @@ import { gameLog } from '@/core/GameLogger';
 const FLOAT_DURATION = 800; // ms for floating text animation
 
 const FLOAT_TEXT_STYLE = new TextStyle({
-  fontFamily: 'monospace',
+  fontFamily: PIXEL_FONT,
   fontSize: 14,
   fontWeight: 'bold',
   fill: COLORS.SUCCESS_GREEN,
@@ -512,7 +513,7 @@ export class GameScene extends Scene {
       this.root.addChild(this.pauseOverlay);
 
       const style = new TextStyle({
-        fontFamily: 'monospace',
+        fontFamily: PIXEL_FONT,
         fontSize: 32,
         fontWeight: 'bold',
         fill: COLORS.STAR_WHITE,
@@ -525,7 +526,7 @@ export class GameScene extends Scene {
       this.pauseOverlay.addChild(pausedText);
 
       const hintStyle = new TextStyle({
-        fontFamily: 'monospace',
+        fontFamily: PIXEL_FONT,
         fontSize: 12,
         fill: COLORS.HULL_GREY,
         align: 'center',

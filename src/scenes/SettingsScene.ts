@@ -3,7 +3,7 @@ import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
 import { ToggleSwitch } from '@/ui/ToggleSwitch';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 
 export class SettingsScene extends Scene {
   private manager: SceneManager;
@@ -40,7 +40,7 @@ export class SettingsScene extends Scene {
 
     // Title
     const titleStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 20,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,
@@ -53,8 +53,8 @@ export class SettingsScene extends Scene {
 
     // Label style
     const labelStyle = new TextStyle({
-      fontFamily: 'monospace',
-      fontSize: 13,
+      fontFamily: PIXEL_FONT,
+      fontSize: 12,
       fill: COLORS.STAR_WHITE,
     });
 

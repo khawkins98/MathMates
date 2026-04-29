@@ -1,10 +1,10 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { COLORS, GAME_WIDTH, HUD_HEIGHT } from '@/constants';
+import { COLORS, GAME_WIDTH, HUD_HEIGHT, PIXEL_FONT } from '@/constants';
 import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import type { GameMode } from '@/types';
 
 const RULE_STYLE = new TextStyle({
-  fontFamily: 'monospace',
+  fontFamily: PIXEL_FONT,
   fontSize: 10,
   fill: COLORS.STAR_WHITE,
   wordWrap: true,
@@ -12,7 +12,7 @@ const RULE_STYLE = new TextStyle({
 });
 
 const SCORE_STYLE = new TextStyle({
-  fontFamily: 'monospace',
+  fontFamily: PIXEL_FONT,
   fontSize: 12,
   fontWeight: 'bold',
   fill: COLORS.STAR_WHITE,
@@ -20,7 +20,7 @@ const SCORE_STYLE = new TextStyle({
 });
 
 const MULTIPLIER_STYLE = new TextStyle({
-  fontFamily: 'monospace',
+  fontFamily: PIXEL_FONT,
   fontSize: 10,
   fontWeight: 'bold',
   fill: COLORS.SUCCESS_GREEN,
@@ -28,7 +28,7 @@ const MULTIPLIER_STYLE = new TextStyle({
 });
 
 const WARNING_STYLE = new TextStyle({
-  fontFamily: 'monospace',
+  fontFamily: PIXEL_FONT,
   fontSize: 10,
   fontWeight: 'bold',
   fill: COLORS.CREW_RED,
@@ -106,7 +106,7 @@ export class HUD extends Container {
 
     // Mode indicator label (shown in impostor mode)
     const modeStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 8,
       fontWeight: 'bold',
       fill: COLORS.CREW_RED,
@@ -136,7 +136,7 @@ export class HUD extends Container {
 
     // Label (e.g. "8/12")
     const progressLabelStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 8,
       fill: COLORS.HULL_GREY,
     });

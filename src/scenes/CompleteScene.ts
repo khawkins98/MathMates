@@ -6,7 +6,7 @@ import { createStar } from '@/sprites/StarIcon';
 import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { AnimationSystem } from '@/core/AnimationSystem';
 import { Easing } from '@/core/Easing';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, TIME_BONUS } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT, TIME_BONUS, PIXEL_FONT } from '@/constants';
 import type { StageDefinition, GameMode } from '@/types';
 
 interface CompleteData {
@@ -75,7 +75,7 @@ export class CompleteScene extends Scene {
     const titleLabel = isImpostor ? 'SABOTAGE COMPLETE!' : 'MISSION COMPLETE!';
     const titleColor = isImpostor ? COLORS.CREW_RED : COLORS.SUCCESS_GREEN;
     const titleStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 28,
       fontWeight: 'bold',
       fill: titleColor,
@@ -89,7 +89,7 @@ export class CompleteScene extends Scene {
 
     // Score
     const scoreStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 18,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,
@@ -106,7 +106,7 @@ export class CompleteScene extends Scene {
     // Accuracy
     const accuracyPercent = Math.round(this.data.accuracy * 100);
     const accStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 14,
       fill: COLORS.STAR_WHITE,
     });
@@ -137,8 +137,8 @@ export class CompleteScene extends Scene {
     this.root.addChild(crewRow);
 
     const remainStyle = new TextStyle({
-      fontFamily: 'monospace',
-      fontSize: 11,
+      fontFamily: PIXEL_FONT,
+      fontSize: 12,
       fill: COLORS.HULL_GREY,
     });
     const remainText = new Text({
@@ -154,7 +154,7 @@ export class CompleteScene extends Scene {
     const earnedTimeBonus = this.data.elapsed <= this.data.parTime;
     if (earnedTimeBonus) {
       const bonusStyle = new TextStyle({
-        fontFamily: 'monospace',
+        fontFamily: PIXEL_FONT,
         fontSize: 14,
         fontWeight: 'bold',
         fill: COLORS.VISOR_CYAN,

@@ -4,7 +4,7 @@ import { SceneManager } from '@/core/SceneManager';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
 import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { StageDefinition, GameMode, LoseReason } from '@/types';
 
 interface GameOverData {
@@ -47,7 +47,7 @@ export class GameOverScene extends Scene {
     }
 
     const titleStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 36,
       fontWeight: 'bold',
       fill: COLORS.CREW_RED,
@@ -74,7 +74,7 @@ export class GameOverScene extends Scene {
     // Reason text for impostor mode
     if (isImpostor) {
       const reasonStyle = new TextStyle({
-        fontFamily: 'monospace',
+        fontFamily: PIXEL_FONT,
         fontSize: 12,
         fill: COLORS.HULL_GREY,
         align: 'center',
@@ -91,7 +91,7 @@ export class GameOverScene extends Scene {
 
     // Score display
     const scoreStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 18,
       fill: COLORS.STAR_WHITE,
     });

@@ -1,5 +1,5 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { COLORS } from '@/constants';
+import { COLORS, PIXEL_FONT } from '@/constants';
 
 const CORNER_RADIUS = 6;
 
@@ -35,7 +35,7 @@ export class ButtonSprite extends Container {
 
     // Label
     const style = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 14,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,

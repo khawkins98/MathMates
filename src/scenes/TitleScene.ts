@@ -4,7 +4,7 @@ import { SceneManager } from '@/core/SceneManager';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
 import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { createGear } from '@/sprites/GearIcon';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { Container } from 'pixi.js';
 
 interface FloatingCrewmate {
@@ -34,7 +34,7 @@ export class TitleScene extends Scene {
 
     // Title text
     const titleStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 40,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,

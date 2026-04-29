@@ -5,7 +5,7 @@ import { ButtonSprite } from '@/sprites/ButtonSprite';
 import { createStar } from '@/sprites/StarIcon';
 import { createPadlock } from '@/sprites/PadlockIcon';
 import { getSortedStages } from '@/stages/index';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { StageDefinition, GameMode } from '@/types';
 
 const CARD_WIDTH = 220;
@@ -37,7 +37,7 @@ export class SelectScene extends Scene {
 
     // Title
     const titleStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 20,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,
@@ -50,7 +50,7 @@ export class SelectScene extends Scene {
 
     // Back button (top-left)
     const backStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 14,
       fill: COLORS.VISOR_CYAN,
     });
@@ -117,8 +117,8 @@ export class SelectScene extends Scene {
 
     // Stage name
     const nameStyle = new TextStyle({
-      fontFamily: 'monospace',
-      fontSize: 13,
+      fontFamily: PIXEL_FONT,
+      fontSize: 12,
       fontWeight: 'bold',
       fill: unlocked ? COLORS.STAR_WHITE : COLORS.HULL_GREY,
     });
@@ -165,8 +165,8 @@ export class SelectScene extends Scene {
 
     // Description
     const descStyle = new TextStyle({
-      fontFamily: 'monospace',
-      fontSize: 11,
+      fontFamily: PIXEL_FONT,
+      fontSize: 12,
       fill: COLORS.STAR_WHITE,
       wordWrap: true,
       wordWrapWidth: GAME_WIDTH - 200,
@@ -178,7 +178,7 @@ export class SelectScene extends Scene {
 
     // Mission count
     const missionStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 10,
       fill: COLORS.HULL_GREY,
     });

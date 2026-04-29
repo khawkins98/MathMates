@@ -3,7 +3,7 @@ import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
 import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { Easing } from '@/core/Easing';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, COUNTDOWN_STEP_MS, STARTING_LIVES } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT, COUNTDOWN_STEP_MS, STARTING_LIVES, PIXEL_FONT } from '@/constants';
 import type { StageDefinition, GameMode } from '@/types';
 
 interface BriefingData {
@@ -57,7 +57,7 @@ export class BriefingScene extends Scene {
 
     // Stage name
     const nameStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 18,
       fontWeight: 'bold',
       fill: accentColor,
@@ -78,7 +78,7 @@ export class BriefingScene extends Scene {
       ? `Sabotage! Eat everything that ISN'T:\n${baseRule}`
       : baseRule;
     const ruleStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: isImpostor ? 18 : 22,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,
@@ -98,8 +98,8 @@ export class BriefingScene extends Scene {
     // Flavor text for impostor mode
     if (isImpostor) {
       const flavorStyle = new TextStyle({
-        fontFamily: 'monospace',
-        fontSize: 11,
+        fontFamily: PIXEL_FONT,
+        fontSize: 12,
         fill: COLORS.CREW_RED,
         align: 'center',
       });
@@ -130,7 +130,7 @@ export class BriefingScene extends Scene {
 
     // Countdown text (hidden initially)
     const countdownStyle = new TextStyle({
-      fontFamily: 'monospace',
+      fontFamily: PIXEL_FONT,
       fontSize: 72,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,
