@@ -1,4 +1,4 @@
-import { Application } from 'pixi.js';
+import { Application, Container } from 'pixi.js';
 import { Scene } from './Scene';
 import { InputManager } from './InputManager';
 import { TransitionOverlay } from './TransitionOverlay';
@@ -15,14 +15,16 @@ export class SceneManager {
 
   private scenes = new Map<GameStateKey, Scene>();
   private activeScene: Scene | null = null;
+  private _stage: Container;
 
-  constructor(app: Application) {
+  constructor(app: Application, stage?: Container) {
     this.app = app;
+    this._stage = stage ?? app.stage;
     this.input = new InputManager();
     this.sound = new SoundManager();
     this.save = new SaveManager();
     this.transition = new TransitionOverlay();
-    app.stage.addChild(this.transition.root);
+    this._stage.addChild(this.transition.root);
   }
 
   register(key: GameStateKey, scene: Scene): void {
@@ -36,14 +38,14 @@ export class SceneManager {
 
     if (this.activeScene) {
       this.activeScene.exit();
-      this.app.stage.removeChild(this.activeScene.root);
+      this._stage.removeChild(this.activeScene.root);
     }
 
     const scene = this.scenes.get(key);
     if (!scene) throw new Error(`Scene not found: ${key}`);
 
     this.activeScene = scene;
-    this.app.stage.addChildAt(scene.root, 0);
+    this._stage.addChildAt(scene.root, 0);
     scene.enter(data);
 
     await this.transition.fadeIn();

@@ -1,6 +1,7 @@
 import { Application, CanvasRendererTextSystem, CanvasTextPipe, CanvasTextSystem, extensions } from 'pixi.js';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '@/constants';
 import { SceneManager } from '@/core/SceneManager';
+import { PixelDisplay } from '@/core/PixelDisplay';
 
 // PixiJS v8 registers render-pipe extensions via module-level side effects in
 // scene/text/init.mjs, which is only imported by Text.mjs.  In a production
@@ -27,25 +28,22 @@ async function init() {
   }
   container.appendChild(app.canvas);
 
-  // Ensure crisp pixel rendering when CSS-scaled
-  app.canvas.style.imageRendering = 'pixelated';
+  // PixelDisplay handles viewport CSS scaling and optionally routes rendering
+  // through a low-res RenderTexture for a chunky-pixel look.
+  //
+  // Tuning options (uncomment to activate):
+  //   pixelScale: 2      → renders at 260×190, upscaled 2× (2×2 pixel blocks)
+  //   integerScaling     → CSS scale snapped to whole multiples (perfect alignment)
+  const display = new PixelDisplay(app, {
+    logicalWidth: GAME_WIDTH,
+    logicalHeight: GAME_HEIGHT,
+    // pixelScale: 2,
+    // integerScaling: true,
+  });
 
-  // Viewport scaling with letterboxing
-  function resize() {
-    const windowW = window.innerWidth;
-    const windowH = window.innerHeight;
-    const scale = Math.min(windowW / GAME_WIDTH, windowH / GAME_HEIGHT);
-    const scaledW = Math.floor(GAME_WIDTH * scale);
-    const scaledH = Math.floor(GAME_HEIGHT * scale);
-    app.canvas.style.width = `${scaledW}px`;
-    app.canvas.style.height = `${scaledH}px`;
-  }
-
-  window.addEventListener('resize', resize);
-  resize();
-
-  // Boot scene manager
-  const sceneManager = new SceneManager(app);
+  // Boot scene manager — pass display.gameContainer so scenes render through
+  // the pixel display pipeline rather than directly onto app.stage.
+  const sceneManager = new SceneManager(app, display.gameContainer);
   sceneManager.start();
 }
 
