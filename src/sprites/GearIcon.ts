@@ -1,12 +1,11 @@
 import { Container, Graphics } from 'pixi.js';
 import { COLORS } from '@/constants';
 
-const DEFAULT_SIZE = 16;
-const TOOTH_COUNT = 8;
+const DEFAULT_SIZE = 32;
 
 /**
- * Creates a gear/cog icon drawn in Hull Grey with light alpha.
- * Central circle with rectangular teeth around the perimeter and a hole in the center.
+ * Pixel-art style 4-tooth gear icon (N/S/E/W teeth).
+ * Rectangular teeth read cleanly at low pixel-scale resolutions.
  */
 export function createGear(size: number = DEFAULT_SIZE): Container {
   const container = new Container();
@@ -14,42 +13,25 @@ export function createGear(size: number = DEFAULT_SIZE): Container {
 
   const cx = size / 2;
   const cy = size / 2;
-  const outerRadius = size / 2;
-  const innerRadius = outerRadius * 0.6;
-  const holeRadius = outerRadius * 0.22;
-  const toothWidth = (2 * Math.PI) / (TOOTH_COUNT * 2);
-  const toothDepth = outerRadius - innerRadius;
+  const bodyR = size * 0.33;
+  const holeR = size * 0.12;
+  const toothHalf = size * 0.11; // half-width of each tooth
+  const toothProtrude = size * 0.18; // how far tooth extends beyond body edge
+  const overlap = size * 0.04; // tooth overlaps slightly into body to avoid gaps
 
-  // Build gear outline as a polygon path
-  const points: number[] = [];
+  // 4 rectangular teeth at N / S / W / E
+  gfx.rect(cx - toothHalf, cy - bodyR - toothProtrude, toothHalf * 2, toothProtrude + overlap).fill(COLORS.HULL_GREY);
+  gfx.rect(cx - toothHalf, cy + bodyR - overlap, toothHalf * 2, toothProtrude + overlap).fill(COLORS.HULL_GREY);
+  gfx.rect(cx - bodyR - toothProtrude, cy - toothHalf, toothProtrude + overlap, toothHalf * 2).fill(COLORS.HULL_GREY);
+  gfx.rect(cx + bodyR - overlap, cy - toothHalf, toothProtrude + overlap, toothHalf * 2).fill(COLORS.HULL_GREY);
 
-  for (let i = 0; i < TOOTH_COUNT; i++) {
-    const baseAngle = (i / TOOTH_COUNT) * Math.PI * 2 - Math.PI / 2;
+  // Circle body (painted over tooth roots so joins look seamless)
+  gfx.circle(cx, cy, bodyR).fill(COLORS.HULL_GREY);
 
-    // Inner start
-    const a0 = baseAngle - toothWidth;
-    points.push(cx + Math.cos(a0) * innerRadius, cy + Math.sin(a0) * innerRadius);
-
-    // Outer start (tooth rise)
-    const a1 = baseAngle - toothWidth * 0.6;
-    points.push(cx + Math.cos(a1) * (innerRadius + toothDepth), cy + Math.sin(a1) * (innerRadius + toothDepth));
-
-    // Outer end (tooth top)
-    const a2 = baseAngle + toothWidth * 0.6;
-    points.push(cx + Math.cos(a2) * (innerRadius + toothDepth), cy + Math.sin(a2) * (innerRadius + toothDepth));
-
-    // Inner end (tooth fall)
-    const a3 = baseAngle + toothWidth;
-    points.push(cx + Math.cos(a3) * innerRadius, cy + Math.sin(a3) * innerRadius);
-  }
-
-  gfx.poly(points);
-  gfx.fill(COLORS.HULL_GREY);
-
-  // Central hole
-  gfx.circle(cx, cy, holeRadius).fill(COLORS.DEEP_SPACE);
+  // Centre hole
+  gfx.circle(cx, cy, holeR).fill(COLORS.DEEP_SPACE);
 
   container.addChild(gfx);
-  container.alpha = 0.7;
+  container.alpha = 0.8;
   return container;
 }

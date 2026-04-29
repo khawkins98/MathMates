@@ -104,7 +104,14 @@ export class PixelDisplay {
     // Scale the sprite to fill the full logical canvas.
     // Use separate x/y scale to tolerate imperfect division.
     displaySprite.scale.set(w / texW, h / texH);
+    displaySprite.eventMode = 'none'; // visuals only — don't intercept events
     app.stage.addChild(displaySprite);
+
+    // gameContainer must also live in the display tree so PixiJS's event system
+    // can traverse it. Set renderable=false so it doesn't draw itself visually
+    // (the RenderTexture ticker call above handles all visuals).
+    this.gameContainer.renderable = false;
+    app.stage.addChild(this.gameContainer);
 
     // Pre-built down-scale matrix — avoids allocating one per frame.
     const downMatrix = new Matrix().scale(1 / scale, 1 / scale);

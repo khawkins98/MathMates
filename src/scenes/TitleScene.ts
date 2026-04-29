@@ -7,19 +7,27 @@ import { createGear } from '@/sprites/GearIcon';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { Container } from 'pixi.js';
 
-interface FloatingCrewmate {
+const SPAWN_MARGIN = 60;
+const CREW_COUNT = 8;
+// px/ms — slow enough to feel like zero-gravity drift
+const SPEED_MIN = 0.018;
+const SPEED_MAX = 0.048;
+
+interface DriftingCrewmate {
   sprite: Container;
-  baseX: number;
-  baseY: number;
-  bobPhase: number;
-  bobSpeed: number;
-  bobAmplitude: number;
-  driftSpeed: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  baseScale: number;
+  scalePhase: number;
+  scaleSpeed: number; // oscillations/ms
+  rotSpeed: number;   // radians/ms
 }
 
 export class TitleScene extends Scene {
   private manager: SceneManager;
-  private crewmates: FloatingCrewmate[] = [];
+  private crewmates: DriftingCrewmate[] = [];
   private startButton: ButtonSprite | null = null;
   private elapsed = 0;
 
@@ -46,30 +54,25 @@ export class TitleScene extends Scene {
     title.y = 60;
     this.root.addChild(title);
 
-    // Floating crewmates
-    const crewColors = [CREW_COLORS[0], CREW_COLORS[1], CREW_COLORS[2], CREW_COLORS[3]];
-    const startPositions = [
-      { x: 80, y: 160 },
-      { x: 200, y: 200 },
-      { x: 320, y: 170 },
-      { x: 440, y: 190 },
-    ];
-
-    for (let i = 0; i < 4; i++) {
-      const sprite = createCrewmateSprite(crewColors[i]);
-      sprite.x = startPositions[i].x;
-      sprite.y = startPositions[i].y;
+    // Drifting crewmates — spawn distributed across the screen initially
+    for (let i = 0; i < CREW_COUNT; i++) {
+      const color = CREW_COLORS[i % CREW_COLORS.length];
+      const sprite = createCrewmateSprite(color);
       this.root.addChild(sprite);
 
-      this.crewmates.push({
+      const cm: DriftingCrewmate = {
         sprite,
-        baseX: startPositions[i].x,
-        baseY: startPositions[i].y,
-        bobPhase: (i / 4) * Math.PI * 2,
-        bobSpeed: 1.5 + Math.random() * 0.5,
-        bobAmplitude: 8 + Math.random() * 6,
-        driftSpeed: 10 + Math.random() * 10,
-      });
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT,
+        vx: 0,
+        vy: 0,
+        baseScale: 0.4 + Math.random() * 0.8,   // 0.4–1.2× depth variety
+        scalePhase: Math.random() * Math.PI * 2,
+        scaleSpeed: 0.0004 + Math.random() * 0.0006,
+        rotSpeed: (Math.random() - 0.5) * 0.001,
+      };
+      this._setRandomVelocity(cm);
+      this.crewmates.push(cm);
     }
 
     // START button
@@ -84,9 +87,9 @@ export class TitleScene extends Scene {
     this.root.addChild(this.startButton);
 
     // Gear icon (bottom-right)
-    const gear = createGear(24);
-    gear.x = GAME_WIDTH - 40;
-    gear.y = GAME_HEIGHT - 40;
+    const gear = createGear(32);
+    gear.x = GAME_WIDTH - 48;
+    gear.y = GAME_HEIGHT - 48;
     gear.eventMode = 'static';
     gear.cursor = 'pointer';
     gear.on('pointerdown', () => {
@@ -95,23 +98,40 @@ export class TitleScene extends Scene {
     });
     this.root.addChild(gear);
 
-    // Play ambient hum
     this.manager.sound.ambientHum();
   }
 
   update(dt: number): void {
     this.elapsed += dt;
-    const t = this.elapsed / 1000; // seconds
 
-    // Animate crewmate bob and drift
     for (const cm of this.crewmates) {
-      cm.sprite.y = cm.baseY + Math.sin(t * cm.bobSpeed + cm.bobPhase) * cm.bobAmplitude;
-      cm.sprite.x = cm.baseX + Math.sin(t * 0.3 + cm.bobPhase) * cm.driftSpeed;
+      cm.x += cm.vx * dt;
+      cm.y += cm.vy * dt;
+      cm.sprite.rotation += cm.rotSpeed * dt;
+
+      // Scale oscillates with abs(sin) — simulates tumbling in 3D (face-on → edge-on)
+      const tumble = 0.35 + 0.65 * Math.abs(Math.sin(cm.scalePhase + this.elapsed * cm.scaleSpeed));
+      const s = cm.baseScale * tumble;
+      cm.sprite.scale.set(s);
+      // Dimmer when turned away (small) — reinforces depth illusion
+      cm.sprite.alpha = 0.4 + 0.6 * (tumble);
+
+      cm.sprite.x = cm.x;
+      cm.sprite.y = cm.y;
+
+      // Respawn from a random edge once fully off-screen
+      if (
+        cm.x < -SPAWN_MARGIN || cm.x > GAME_WIDTH + SPAWN_MARGIN ||
+        cm.y < -SPAWN_MARGIN || cm.y > GAME_HEIGHT + SPAWN_MARGIN
+      ) {
+        this._respawnFromEdge(cm);
+      }
     }
 
-    // Pulsing start button (scale oscillates 1.0 to 1.05)
+    // Pulsing start button
     if (this.startButton) {
-      const pulse = 1.0 + 0.05 * Math.sin(t * 3);
+      const t = this.elapsed / 1000;
+      const pulse = 1.0 + 0.04 * Math.sin(t * 3);
       this.startButton.scale.set(pulse);
     }
   }
@@ -121,5 +141,47 @@ export class TitleScene extends Scene {
     this.destroyChildren();
     this.crewmates = [];
     this.startButton = null;
+  }
+
+  private _setRandomVelocity(cm: DriftingCrewmate): void {
+    const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
+    const angle = Math.random() * Math.PI * 2;
+    cm.vx = Math.cos(angle) * speed;
+    cm.vy = Math.sin(angle) * speed;
+  }
+
+  private _respawnFromEdge(cm: DriftingCrewmate): void {
+    const edge = Math.floor(Math.random() * 4);
+    const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
+
+    switch (edge) {
+      case 0: // top → drift downward
+        cm.x = Math.random() * GAME_WIDTH;
+        cm.y = -SPAWN_MARGIN;
+        cm.vx = (Math.random() - 0.5) * speed;
+        cm.vy = speed;
+        break;
+      case 1: // bottom → drift upward
+        cm.x = Math.random() * GAME_WIDTH;
+        cm.y = GAME_HEIGHT + SPAWN_MARGIN;
+        cm.vx = (Math.random() - 0.5) * speed;
+        cm.vy = -speed;
+        break;
+      case 2: // left → drift right
+        cm.x = -SPAWN_MARGIN;
+        cm.y = Math.random() * GAME_HEIGHT;
+        cm.vx = speed;
+        cm.vy = (Math.random() - 0.5) * speed;
+        break;
+      default: // right → drift left
+        cm.x = GAME_WIDTH + SPAWN_MARGIN;
+        cm.y = Math.random() * GAME_HEIGHT;
+        cm.vx = -speed;
+        cm.vy = (Math.random() - 0.5) * speed;
+    }
+
+    cm.baseScale = 0.4 + Math.random() * 0.8;
+    cm.scalePhase = Math.random() * Math.PI * 2;
+    cm.rotSpeed = (Math.random() - 0.5) * 0.001;
   }
 }
