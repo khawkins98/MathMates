@@ -17,6 +17,7 @@
 
 import { Application, Container, Matrix, RenderTexture, Sprite } from 'pixi.js';
 import { PixelateFilter } from 'pixi-filters';
+import { EightBitFilter } from '@/filters/EightBitFilter';
 
 export interface PixelDisplayOptions {
   logicalWidth: number;
@@ -40,6 +41,12 @@ export interface PixelDisplayOptions {
    * Leave undefined to disable (default).
    */
   filterSize?: number;
+  /**
+   * Snap each colour channel to this many discrete levels for an 8-bit palette
+   * look. 6 (default when enabled) → 216 colours; 4 → 64 colours.
+   * Pairs well with pixelScale:2. Leave undefined to disable (default).
+   */
+  eightBitSteps?: number;
 }
 
 export class PixelDisplay {
@@ -50,13 +57,14 @@ export class PixelDisplay {
   readonly gameContainer: Container;
 
   constructor(app: Application, opts: PixelDisplayOptions) {
-    const { logicalWidth, logicalHeight, pixelScale = 1, integerScaling = false, filterSize } = opts;
+    const { logicalWidth, logicalHeight, pixelScale = 1, integerScaling = false, filterSize, eightBitSteps } = opts;
 
     this.gameContainer = new Container();
 
-    if (filterSize !== undefined) {
-      this.gameContainer.filters = [new PixelateFilter(filterSize)];
-    }
+    const filters: (PixelateFilter | EightBitFilter)[] = [];
+    if (filterSize !== undefined) filters.push(new PixelateFilter(filterSize));
+    if (eightBitSteps !== undefined) filters.push(new EightBitFilter(eightBitSteps));
+    if (filters.length) this.gameContainer.filters = filters;
 
     if (pixelScale > 1) {
       this._setupLowResRender(app, logicalWidth, logicalHeight, pixelScale);

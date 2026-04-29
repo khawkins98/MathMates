@@ -36,12 +36,15 @@ async function init() {
   //   filterSize: 4      → PixelateFilter post-pass, 4×4 blocks (chunky retro)
   //   pixelScale: 2      → renders at 260×190, upscaled 2× (true low-res render)
   //   integerScaling     → CSS scale snapped to whole multiples (perfect alignment)
+  //   eightBitSteps: 6   → colour quantise to 216 colours (6 levels/channel)
+  //   eightBitSteps: 4   → colour quantise to 64 colours (4 levels/channel, more dramatic)
   const display = new PixelDisplay(app, {
     logicalWidth: GAME_WIDTH,
     logicalHeight: GAME_HEIGHT,
     // filterSize: 2,
     pixelScale: 2,
     integerScaling: true,
+    eightBitSteps: 6,
   });
 
   // Boot scene manager — pass display.gameContainer so scenes render through
