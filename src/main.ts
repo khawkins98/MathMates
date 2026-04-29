@@ -40,8 +40,8 @@ async function init() {
     logicalWidth: GAME_WIDTH,
     logicalHeight: GAME_HEIGHT,
     // filterSize: 2,
-    // pixelScale: 2,
-    // integerScaling: true,
+    pixelScale: 2,
+    integerScaling: true,
   });
 
   // Boot scene manager — pass display.gameContainer so scenes render through
