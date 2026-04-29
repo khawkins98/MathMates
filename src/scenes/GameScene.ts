@@ -28,6 +28,7 @@ import {
   COLORS,
 } from '@/constants';
 import type { StageDefinition, InputAction, GameMode } from '@/types';
+import { gameLog } from '@/core/GameLogger';
 
 const FLOAT_DURATION = 800; // ms for floating text animation
 
@@ -104,6 +105,7 @@ export class GameScene extends Scene {
     this.stage = stage;
     this.missionIndex = missionIndex;
     this.mode = sceneData.mode ?? 'crew';
+    gameLog.resetSession();
 
     // Reset state
     this.playing = true;
@@ -384,6 +386,7 @@ export class GameScene extends Scene {
   private eatCurrentCellCrew(col: number, row: number): void {
     if (!this.grid || !this.scoring || !this.lives || !this.hud) return;
 
+    const cellValue = this.grid.getCellAt(col, row)?.value ?? '?';
     const wasCorrect = this.grid.consumeCell(col, row);
 
     if (wasCorrect) {
@@ -393,6 +396,16 @@ export class GameScene extends Scene {
       this.hud.setScore(this.scoring.score);
       this.hud.setMultiplier(this.scoring.multiplier);
       this.hud.setProgress(this.grid.correctEaten, this.grid.totalCorrect, COLORS.SUCCESS_GREEN);
+
+      gameLog.playerAte({
+        mode: 'crew',
+        value: cellValue,
+        rule: this.stage?.getRuleText(this.missionIndex) ?? '',
+        isCorrectCell: true,
+        scoreAfter: this.scoring.score,
+        multiplier: this.scoring.multiplier,
+        livesAfter: null,
+      });
 
       if (this.grid.isCleared()) {
         this.handleWin();
@@ -404,6 +417,17 @@ export class GameScene extends Scene {
       this.manager.sound.errorBuzz();
 
       this.hud.setMultiplier(this.scoring.multiplier);
+
+      gameLog.playerAte({
+        mode: 'crew',
+        value: cellValue,
+        rule: this.stage?.getRuleText(this.missionIndex) ?? '',
+        isCorrectCell: false,
+        scoreAfter: this.scoring.score,
+        multiplier: this.scoring.multiplier,
+        livesAfter: this.lives.remaining,
+      });
+
       this.triggerElimination();
     }
   }
@@ -411,6 +435,7 @@ export class GameScene extends Scene {
   private eatCurrentCellImpostor(col: number, row: number): void {
     if (!this.grid || !this.scoring || !this.lives || !this.hud) return;
 
+    const cellValue = this.grid.getCellAt(col, row)?.value ?? '?';
     const isCorrect = this.grid.isCorrectCell(col, row);
 
     if (!isCorrect) {
@@ -421,6 +446,16 @@ export class GameScene extends Scene {
 
       this.hud.setScore(this.scoring.score);
       this.hud.setMultiplier(this.scoring.multiplier);
+
+      gameLog.playerAte({
+        mode: 'impostor',
+        value: cellValue,
+        rule: this.stage?.getRuleText(this.missionIndex) ?? '',
+        isCorrectCell: false,
+        scoreAfter: this.scoring.score,
+        multiplier: this.scoring.multiplier,
+        livesAfter: null,
+      });
 
       // Check if any alive crewmate is standing on this cell — eliminate them
       this.checkCrewmateElimination(col, row);
@@ -438,6 +473,17 @@ export class GameScene extends Scene {
       this.manager.sound.errorBuzz();
 
       this.hud.setMultiplier(this.scoring.multiplier);
+
+      gameLog.playerAte({
+        mode: 'impostor',
+        value: cellValue,
+        rule: this.stage?.getRuleText(this.missionIndex) ?? '',
+        isCorrectCell: true,
+        scoreAfter: this.scoring.score,
+        multiplier: this.scoring.multiplier,
+        livesAfter: this.lives.remaining,
+      });
+
       this.triggerElimination('voted_out');
     }
   }
@@ -744,10 +790,19 @@ export class GameScene extends Scene {
 
       if (consumed) {
         // AI completed dwell and consumes a correct cell
+        const consumedValue = this.grid.getCellAt(crewmate.gridCol, crewmate.gridRow)?.value ?? '?';
         this.grid.consumeCellWithFlash(crewmate.gridCol, crewmate.gridRow, 'correct');
 
         // Update progress bar with crewmate progress (threat indicator)
         this.hud.setProgress(this.grid.correctEaten, this.grid.totalCorrect, COLORS.SUCCESS_GREEN);
+
+        gameLog.aiConsumedCell({
+          aiIndex: i,
+          value: consumedValue,
+          rule: this.stage?.getRuleText(this.missionIndex) ?? '',
+          correctEaten: this.grid.correctEaten,
+          totalCorrect: this.grid.totalCorrect,
+        });
 
         // Check if AI cleared all correct cells — player loses
         if (this.grid.isCleared()) {
@@ -767,8 +822,11 @@ export class GameScene extends Scene {
   private handleAICrewmateCatch(crewmate: AICrewmate): void {
     if (!this.lives || !this.player) return;
 
+    const aiIndex = this.aiCrewmates.indexOf(crewmate);
     this.lives.loseLife();
     this.manager.sound.errorBuzz();
+
+    gameLog.aiCaughtPlayer({ aiIndex, livesAfter: this.lives.remaining });
 
     // Respawn the crewmate that caught the player at edge
     const { col, row } = this.player.getGridPosition();
@@ -793,12 +851,15 @@ export class GameScene extends Scene {
   private eliminateCrewmate(crewmate: AICrewmate): void {
     if (!this.scoring || !this.hud || !this.grid) return;
 
+    const aiIndex = this.aiCrewmates.indexOf(crewmate);
     crewmate.eliminate();
 
     // Award points
     this.scoring.recordElimination();
     this.hud.setScore(this.scoring.score);
     this.hud.setMultiplier(this.scoring.multiplier);
+
+    gameLog.impostorEliminatedCrew({ aiIndex, scoreAfter: this.scoring.score });
 
     // Play eject sound
     this.manager.sound.crewmateEject();
