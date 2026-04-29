@@ -169,7 +169,10 @@ export class HUD extends Container {
   }
 
   setLives(n: number, max: number): void {
-    // Rebuild mini crewmate icons
+    // Rebuild mini crewmate icons, destroying the previous ones to free GPU resources
+    for (const child of this.livesContainer.children) {
+      child.destroy({ children: true });
+    }
     this.livesContainer.removeChildren();
 
     const iconSpacing = 14;
@@ -213,6 +216,10 @@ export class HUD extends Container {
   }
 
   setCrewmateStatus(statuses: CrewmateStatus[]): void {
+    // Destroy previous icons before removing to free GPU resources
+    for (const child of this.crewmateStatusContainer.children) {
+      child.destroy({ children: true });
+    }
     this.crewmateStatusContainer.removeChildren();
     if (statuses.length === 0) {
       this.crewmateStatusContainer.visible = false;
