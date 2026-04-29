@@ -32,11 +32,14 @@ async function init() {
   // through a low-res RenderTexture for a chunky-pixel look.
   //
   // Tuning options (uncomment to activate):
-  //   pixelScale: 2      → renders at 260×190, upscaled 2× (2×2 pixel blocks)
+  //   filterSize: 2      → PixelateFilter post-pass, 2×2 blocks (community standard, subtle)
+  //   filterSize: 4      → PixelateFilter post-pass, 4×4 blocks (chunky retro)
+  //   pixelScale: 2      → renders at 260×190, upscaled 2× (true low-res render)
   //   integerScaling     → CSS scale snapped to whole multiples (perfect alignment)
   const display = new PixelDisplay(app, {
     logicalWidth: GAME_WIDTH,
     logicalHeight: GAME_HEIGHT,
+    // filterSize: 2,
     // pixelScale: 2,
     // integerScaling: true,
   });

@@ -16,6 +16,7 @@
  */
 
 import { Application, Container, Matrix, RenderTexture, Sprite } from 'pixi.js';
+import { PixelateFilter } from 'pixi-filters';
 
 export interface PixelDisplayOptions {
   logicalWidth: number;
@@ -31,6 +32,14 @@ export interface PixelDisplayOptions {
    * identical N×N block of screen pixels. Off by default.
    */
   integerScaling?: boolean;
+  /**
+   * Apply a PixelateFilter (from pixi-filters) as a post-processing pass.
+   * Value is the pixel block size in screen pixels — 2 is subtle, 4 is chunky.
+   * Renders at full resolution then snaps sampling to a grid; text stays sharp
+   * before the filter is applied, unlike the pixelScale RenderTexture approach.
+   * Leave undefined to disable (default).
+   */
+  filterSize?: number;
 }
 
 export class PixelDisplay {
@@ -41,9 +50,13 @@ export class PixelDisplay {
   readonly gameContainer: Container;
 
   constructor(app: Application, opts: PixelDisplayOptions) {
-    const { logicalWidth, logicalHeight, pixelScale = 1, integerScaling = false } = opts;
+    const { logicalWidth, logicalHeight, pixelScale = 1, integerScaling = false, filterSize } = opts;
 
     this.gameContainer = new Container();
+
+    if (filterSize !== undefined) {
+      this.gameContainer.filters = [new PixelateFilter(filterSize)];
+    }
 
     if (pixelScale > 1) {
       this._setupLowResRender(app, logicalWidth, logicalHeight, pixelScale);
