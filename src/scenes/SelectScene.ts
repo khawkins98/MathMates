@@ -8,12 +8,21 @@ import { getSortedStages } from '@/stages/index';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { StageDefinition, GameMode } from '@/types';
 
-const CARD_WIDTH = 220;
-const CARD_HEIGHT = 70;
-const CARD_GAP_X = 20;
-const CARD_GAP_Y = 14;
-const GRID_START_X = (GAME_WIDTH - CARD_WIDTH * 2 - CARD_GAP_X) / 2;
-const GRID_START_Y = 50;
+const CARD_WIDTH = 160;
+const CARD_HEIGHT = 54;
+const CARD_GAP_X = 8;
+const CARD_GAP_Y = 4;
+const GRID_COLS = 3;
+const GRID_START_X = Math.round((GAME_WIDTH - CARD_WIDTH * GRID_COLS - CARD_GAP_X * (GRID_COLS - 1)) / 2);
+const GRID_START_Y = 36;
+
+// Bottom detail panel
+const PANEL_H = 110;
+// Layout rows within the panel (relative to panelY):
+const DESC_Y   = 8;   // description text
+const MISS_Y   = 56;  // mission count (reserves 3 lines × 16px = 48px for description)
+const MODE_Y   = 74;  // crew/impostor mode buttons (22px tall → bottom at 96)
+const LAUNCH_Y = 33;  // launch button top (height=44 → centred in 110px panel)
 
 export class SelectScene extends Scene {
   private manager: SceneManager;
@@ -74,8 +83,8 @@ export class SelectScene extends Scene {
     }));
 
     stages.forEach((stage, index) => {
-      const col = index % 2;
-      const row = Math.floor(index / 2);
+      const col = index % GRID_COLS;
+      const row = Math.floor(index / GRID_COLS);
       const x = GRID_START_X + col * (CARD_WIDTH + CARD_GAP_X);
       const y = GRID_START_Y + row * (CARD_HEIGHT + CARD_GAP_Y);
 
@@ -115,31 +124,34 @@ export class SelectScene extends Scene {
     }
     card.addChild(bg);
 
-    // Stage name
+    // Stage name — wrap text so long titles stay within the card
+    const nameWrapWidth = unlocked ? CARD_WIDTH - 16 : CARD_WIDTH - 36;
     const nameStyle = new TextStyle({
       fontFamily: PIXEL_FONT,
-      fontSize: 12,
+      fontSize: 10,
       fontWeight: 'bold',
       fill: unlocked ? COLORS.STAR_WHITE : COLORS.HULL_GREY,
+      wordWrap: true,
+      wordWrapWidth: nameWrapWidth,
     });
     const nameText = new Text({ text: stage.name, style: nameStyle });
-    nameText.x = 10;
-    nameText.y = 10;
+    nameText.x = 8;
+    nameText.y = 6;
     card.addChild(nameText);
 
-    // Difficulty stars
+    // Difficulty stars — fixed row near the bottom of the card
     for (let i = 0; i < 5; i++) {
-      const star = createStar(i < stage.difficulty, 8);
-      star.x = 10 + i * 18;
-      star.y = 34;
+      const star = createStar(i < stage.difficulty, 7);
+      star.x = 8 + i * 14;
+      star.y = CARD_HEIGHT - 16;
       card.addChild(star);
     }
 
-    // Lock icon or icon text
+    // Lock icon top-right (reserved column keeps text from flowing beneath it)
     if (!unlocked) {
-      const padlock = createPadlock(18);
-      padlock.x = CARD_WIDTH - 30;
-      padlock.y = (CARD_HEIGHT - 18) / 2;
+      const padlock = createPadlock(14);
+      padlock.x = CARD_WIDTH - 22;
+      padlock.y = 6;
       card.addChild(padlock);
       card.alpha = 0.5;
     }
@@ -153,33 +165,32 @@ export class SelectScene extends Scene {
 
     if (!this.detailPanel) return;
 
-    // Clear previous detail content
     this.detailPanel.removeChildren();
     this.detailPanel.visible = true;
 
-    // Background panel at bottom
-    const panelY = GAME_HEIGHT - 80;
+    const panelY = GAME_HEIGHT - PANEL_H;
+
     this.panelBorder = new Graphics();
     this.drawPanelBorder(panelY, COLORS.VISOR_CYAN);
     this.detailPanel.addChild(this.panelBorder);
 
-    // Description
+    // Description — reserved area for up to 3 lines (DESC_Y to MISS_Y)
     const descStyle = new TextStyle({
       fontFamily: PIXEL_FONT,
-      fontSize: 12,
+      fontSize: 10,
       fill: COLORS.STAR_WHITE,
       wordWrap: true,
-      wordWrapWidth: GAME_WIDTH - 200,
+      wordWrapWidth: 310,
     });
     const descText = new Text({ text: stage.description, style: descStyle });
     descText.x = 20;
-    descText.y = panelY + 8;
+    descText.y = panelY + DESC_Y;
     this.detailPanel.addChild(descText);
 
     // Mission count
     const missionStyle = new TextStyle({
       fontFamily: PIXEL_FONT,
-      fontSize: 10,
+      fontSize: 8,
       fill: COLORS.HULL_GREY,
     });
     const missionText = new Text({
@@ -187,22 +198,22 @@ export class SelectScene extends Scene {
       style: missionStyle,
     });
     missionText.x = 20;
-    missionText.y = panelY + 30;
+    missionText.y = panelY + MISS_Y;
     this.detailPanel.addChild(missionText);
 
-    // Mode toggle buttons
+    // Mode toggle buttons — short labels fit the low-res cards
     const hasCrewProgress = this.manager.save.hasCrewProgress(stage.id);
 
-    this.crewBtn = new ButtonSprite('Crew', 55, 20, COLORS.VISOR_CYAN);
+    this.crewBtn = new ButtonSprite('CREW', 60, 22, COLORS.VISOR_CYAN, 10);
     this.crewBtn.x = 20;
-    this.crewBtn.y = panelY + 48;
+    this.crewBtn.y = panelY + MODE_Y;
     this.crewBtn.onClick = () => this.setMode('crew');
     this.detailPanel.addChild(this.crewBtn);
 
     const impostorColor = hasCrewProgress ? COLORS.HULL_GREY : 0x333355;
-    this.impostorBtn = new ButtonSprite('Impostor', 65, 20, impostorColor);
-    this.impostorBtn.x = 82;
-    this.impostorBtn.y = panelY + 48;
+    this.impostorBtn = new ButtonSprite('IMPOSTOR', 96, 22, impostorColor, 10);
+    this.impostorBtn.x = 88;
+    this.impostorBtn.y = panelY + MODE_Y;
     if (hasCrewProgress) {
       this.impostorBtn.onClick = () => this.setMode('impostor');
     } else {
@@ -210,10 +221,10 @@ export class SelectScene extends Scene {
     }
     this.detailPanel.addChild(this.impostorBtn);
 
-    // Launch Mission button
-    this.launchButton = new ButtonSprite('Launch Mission', 130, 34, COLORS.SUCCESS_GREEN);
-    this.launchButton.x = GAME_WIDTH - 155;
-    this.launchButton.y = panelY + 18;
+    // Launch button — right side, vertically centred in panel
+    this.launchButton = new ButtonSprite('LAUNCH', 145, 44, COLORS.SUCCESS_GREEN);
+    this.launchButton.x = GAME_WIDTH - 158;
+    this.launchButton.y = panelY + LAUNCH_Y;
     this.launchButton.onClick = () => {
       if (!this.selectedStage) return;
       this.manager.sound.buttonClick();
@@ -231,7 +242,7 @@ export class SelectScene extends Scene {
     this.selectedMode = mode;
     this.manager.sound.buttonClick();
 
-    const panelY = GAME_HEIGHT - 80;
+    const panelY = GAME_HEIGHT - PANEL_H;
     const borderColor = mode === 'impostor' ? COLORS.CREW_RED : COLORS.VISOR_CYAN;
     if (this.panelBorder) {
       this.panelBorder.clear();
@@ -241,8 +252,8 @@ export class SelectScene extends Scene {
 
   private drawPanelBorder(panelY: number, borderColor: number): void {
     if (!this.panelBorder) return;
-    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, 70, 6).fill(0x2a2f55);
-    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, 70, 6).stroke({
+    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, PANEL_H, 6).fill(0x2a2f55);
+    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, PANEL_H, 6).stroke({
       width: 1,
       color: borderColor,
     });

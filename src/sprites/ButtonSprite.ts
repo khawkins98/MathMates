@@ -21,6 +21,7 @@ export class ButtonSprite extends Container {
     width: number,
     height: number,
     bgColor: number = COLORS.HULL_GREY,
+    fontSize: number = 14,
   ) {
     super();
 
@@ -36,7 +37,7 @@ export class ButtonSprite extends Container {
     // Label
     const style = new TextStyle({
       fontFamily: PIXEL_FONT,
-      fontSize: 14,
+      fontSize,
       fontWeight: 'bold',
       fill: COLORS.STAR_WHITE,
       align: 'center',
