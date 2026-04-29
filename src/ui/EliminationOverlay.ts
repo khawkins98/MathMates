@@ -33,6 +33,7 @@ export class EliminationOverlay extends Container {
   private elapsed = 0;
   private playing = false;
   private resolve: (() => void) | null = null;
+  private currentPlay: Promise<void> | null = null;
   private shakeTarget: Container | null = null;
   private shakeOriginX = 0;
   private shakeOriginY = 0;
@@ -73,9 +74,11 @@ export class EliminationOverlay extends Container {
   /**
    * Plays the elimination sequence.
    * Optionally accepts a parent container to apply screen shake to.
+   * If already playing, returns the in-progress promise rather than restarting.
    */
   play(shakeTarget?: Container, variant: EliminationVariant = 'eliminated'): Promise<void> {
-    return new Promise((resolve) => {
+    if (this.playing) return this.currentPlay!;
+    this.currentPlay = new Promise((resolve) => {
       this.resolve = resolve;
       this.shakeTarget = shakeTarget ?? null;
       this.shakeOriginX = shakeTarget?.x ?? 0;
@@ -97,6 +100,7 @@ export class EliminationOverlay extends Container {
       }
       this.activeSprite.scale.set(0);
     });
+    return this.currentPlay;
   }
 
   /**
@@ -164,6 +168,7 @@ export class EliminationOverlay extends Container {
 
       this.resolve?.();
       this.resolve = null;
+      this.currentPlay = null;
     }
   }
 }
