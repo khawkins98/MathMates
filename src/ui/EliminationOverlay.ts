@@ -29,7 +29,7 @@ export class EliminationOverlay extends Container {
   private flash: Graphics;
   private spriteContainer: Container;
   private impostor: Container;
-  private crewmate: Container;
+  private crewmate: PixelCrewmate;
   private activeSprite: Container;
   private elapsed = 0;
   private playing = false;
@@ -67,6 +67,7 @@ export class EliminationOverlay extends Container {
     this.crewmate.pivot.set(7, 6.5);  // centre of 14×13 art
     this.crewmate.scale.set(0);
     this.crewmate.visible = false;
+    this.crewmate.setWalking(true);
     this.spriteContainer.addChild(this.crewmate);
 
     this.activeSprite = this.impostor;
@@ -113,6 +114,9 @@ export class EliminationOverlay extends Container {
 
     this.elapsed += dt;
     const t = this.elapsed;
+
+    // Advance crewmate walk animation while overlay is visible
+    this.crewmate.update(dt);
 
     // Phase 1: Red flash (0 -> FLASH_DURATION)
     if (t <= FLASH_DURATION) {
