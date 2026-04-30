@@ -4,9 +4,13 @@ import { darken } from '@/utils';
 
 /** URL for the PNG crewmate base sprite (desaturated for tinting). */
 export const CREWMATE_TEXTURE_URL = '/sprites/crewmate-base.png';
-/** Logical display size of the PNG-based crewmate (matches concept-art proportions). */
-const PNG_W = 28;
-const PNG_H = 37;
+/**
+ * Logical display size of the PNG crewmate.
+ * Source texture is 113×141 px; displayed at 56×70 (clean 2× downscale).
+ * Visor overlay coordinates below are calibrated to this display size.
+ */
+const PNG_W = 56;
+const PNG_H = 70;
 
 /** Available crewmate color palettes. */
 export const CREW_COLORS = [
@@ -92,10 +96,11 @@ export function createCrewmateSpritePng(color: number = DEFAULT_COLOR): Containe
   container.addChild(body);
 
   // Visor overlay — fixed cyan so it looks the same regardless of body tint.
-  // Positions calibrated against the 28×37 px sprite (scaled from 106×141 source).
+  // Calibrated to PNG_W×PNG_H (56×70): native visor centre (82,42) in 113×141 source
+  // maps to (41,21) at display size; rx=11, ry=8.
   const visor = new Graphics();
-  visor.ellipse(20, 10, 5, 7).fill(COLORS.VISOR_CYAN);
-  visor.roundRect(16, 5, 4, 3, 1).fill({ color: 0xdfffff, alpha: 0.85 }); // glass highlight
+  visor.ellipse(41, 21, 11, 8).fill(COLORS.VISOR_CYAN);
+  visor.roundRect(32, 12, 10, 5, 1).fill({ color: 0xdfffff, alpha: 0.85 }); // glass highlight
   container.addChild(visor);
 
   return container;
