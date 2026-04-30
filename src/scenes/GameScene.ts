@@ -9,7 +9,7 @@ import { HUD } from '@/ui/HUD';
 import { EliminationOverlay, type EliminationVariant } from '@/ui/EliminationOverlay';
 import { ScoringSystem } from '@/systems/ScoringSystem';
 import { LivesSystem } from '@/systems/LivesSystem';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { createCrewmateSpritePng, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
 import { pickEdgeCells, manhattan } from '@/entities/gridHelpers';
@@ -143,10 +143,9 @@ export class GameScene extends Scene {
       impostorSprite.scale.set(0.8);
       this.player.addChild(impostorSprite);
     } else {
-      const crewmate = createCrewmateSprite(CREW_COLORS[0]);
-      crewmate.pivot.set(11, 12);
+      const crewmate = createCrewmateSpritePng(CREW_COLORS[0], 16, 18);
+      crewmate.pivot.set(8, 9);
       crewmate.y = 16;
-      crewmate.scale.set(0.8);
       this.player.addChild(crewmate);
     }
     this.player.moveTo(0, 0);
@@ -736,11 +735,10 @@ export class GameScene extends Scene {
         crewmate.spawnAt(edgeCells[i].col, edgeCells[i].row);
       }
 
-      const sprite = createCrewmateSprite(CREW_COLORS[personality.colorIndex]);
-      sprite.pivot.set(11, 12);
+      const sprite = createCrewmateSpritePng(CREW_COLORS[personality.colorIndex], 13, 15);
+      sprite.pivot.set(6.5, 7.5);
       sprite.y = 18;
       sprite.x = (i - 1) * 10;
-      sprite.scale.set(0.65);
       crewmate.addChild(sprite);
       this.grid.addChild(crewmate);
       this.aiCrewmates.push(crewmate);

@@ -87,24 +87,30 @@ export function createCrewmateSprite(color: number = DEFAULT_COLOR): Container {
  *
  * **Requires** both textures to be preloaded before this function is called.
  *
- * @param color  Hex crew colour (one of CREW_COLORS). Defaults to red.
- * @returns Container sized PNG_W × PNG_H at origin (0,0).
+ * @param color     Hex crew colour (one of CREW_COLORS). Defaults to red.
+ * @param displayW  Display width in pixels. Defaults to PNG_W (56).
+ * @param displayH  Display height in pixels. Defaults to PNG_H (63).
+ * @returns Container sized displayW × displayH at origin (0,0).
  */
-export function createCrewmateSpritePng(color: number = DEFAULT_COLOR): Container {
+export function createCrewmateSpritePng(
+  color: number = DEFAULT_COLOR,
+  displayW: number = PNG_W,
+  displayH: number = PNG_H,
+): Container {
   const container = new Container();
 
   // Body — desaturated PNG tinted to the requested crew colour
   const body = new Sprite(Assets.get(CREWMATE_TEXTURE_URL));
   body.tint = color;
-  body.width = PNG_W;
-  body.height = PNG_H;
+  body.width = displayW;
+  body.height = displayH;
   container.addChild(body);
 
   // Visor — separate PNG, same canvas size as body, no tint applied.
   // To reposition after a sprite change, update crewmate-visor.png (not code).
   const visor = new Sprite(Assets.get(CREWMATE_VISOR_URL));
-  visor.width = PNG_W;
-  visor.height = PNG_H;
+  visor.width = displayW;
+  visor.height = displayH;
   container.addChild(visor);
 
   return container;

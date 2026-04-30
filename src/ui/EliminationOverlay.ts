@@ -1,7 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, ELIMINATION_DURATION } from '@/constants';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { createCrewmateSpritePng, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { Easing } from '@/core/Easing';
 
 export type EliminationVariant = 'eliminated' | 'voted_out';
@@ -62,8 +62,8 @@ export class EliminationOverlay extends Container {
     this.spriteContainer.addChild(this.impostor);
 
     // Crewmate sprite (for 'voted_out' variant)
-    this.crewmate = createCrewmateSprite(CREW_COLORS[1]); // blue
-    this.crewmate.pivot.set(11, 12);
+    this.crewmate = createCrewmateSpritePng(CREW_COLORS[1], 20, 22);
+    this.crewmate.pivot.set(10, 11);
     this.crewmate.scale.set(0);
     this.crewmate.visible = false;
     this.spriteContainer.addChild(this.crewmate);
