@@ -18,37 +18,43 @@ const OUTLINE = 0x111111;
 /**
  * Creates a procedurally-drawn crewmate character at pixel scale.
  *
- * Layout (21 × 24 px bounding box, character faces right):
- *   Backpack — left side, darker shade, rounded rect with highlight strip
- *   Body     — bean-shaped roundRect with dark outline
- *   Visor    — shield-shaped roundRect (not plain ellipse) + glass reflection
- *   Legs     — two rounded rects with dark gap
+ * Layout (~21 × 26 px, character faces right):
+ *   Backpack — left/back side, thinner rounded rect
+ *   Body     — tall capsule (radius=half-width → fully rounded top+bottom) + outline
+ *   Visor    — large oval on the right/face side
+ *   Shading  — 2 px dark strip on left edge + subtle highlight on upper-right
+ *   Legs     — two small rounded rects at body base
  */
 export function createCrewmateSprite(color: number = DEFAULT_COLOR): Container {
   const container = new Container();
   const gfx = new Graphics();
 
-  const bodyDark = darken(color, 0.28);
+  const bodyDark = darken(color, 0.25);
 
-  // --- Outlines (drawn first — sit behind all fills) ---
-  gfx.roundRect(-1, 5, 6, 12, 2).fill(OUTLINE);   // backpack outline
-  gfx.roundRect(2, -1, 17, 22, 7).fill(OUTLINE);   // body outline
+  // --- Outlines (painted first — behind all fills) ---
+  gfx.roundRect(-1, 5, 5, 11, 2).fill(OUTLINE);  // backpack
+  gfx.roundRect(2, -1, 18, 24, 9).fill(OUTLINE);  // body
 
-  // --- Backpack ---
-  gfx.roundRect(0, 6, 4, 10, 2).fill(bodyDark);
-  gfx.rect(1, 8, 1, 5).fill({ color: 0xffffff, alpha: 0.25 }); // highlight strip
+  // --- Backpack (left/back side) ---
+  gfx.roundRect(0, 6, 3, 9, 2).fill(bodyDark);
+  gfx.rect(0, 8, 1, 4).fill({ color: 0xffffff, alpha: 0.25 }); // highlight strip
 
-  // --- Body ---
-  gfx.roundRect(3, 0, 16, 20, 6).fill(color);
+  // --- Body — tall capsule (radius 8 on width 16 gives fully rounded ends) ---
+  gfx.roundRect(3, 0, 16, 22, 8).fill(color);
 
-  // --- Visor — shield shape (rectangular with rounded corners) ---
-  gfx.roundRect(10, 3, 8, 9, 3).fill(COLORS.VISOR_CYAN);
-  gfx.roundRect(11, 4, 4, 3, 1).fill(0xaaffff); // glass reflection
+  // Inner shading: 2 px darker strip on left/back edge
+  gfx.roundRect(3, 2, 2, 18, 1).fill(darken(color, 0.2));
+  // Subtle upper-right highlight (light source from front-right)
+  gfx.ellipse(16, 6, 4, 6).fill({ color: 0xffffff, alpha: 0.1 });
+
+  // --- Visor — large oval, upper-right face area ---
+  gfx.ellipse(14, 9, 5, 7).fill(COLORS.VISOR_CYAN);
+  gfx.roundRect(10, 4, 3, 2, 1).fill(0xdfffff); // glass reflection
 
   // --- Legs ---
-  gfx.roundRect(5, 19, 5, 5, 2).fill(bodyDark);
-  gfx.roundRect(12, 19, 5, 5, 2).fill(bodyDark);
-  gfx.rect(10, 20, 2, 4).fill(OUTLINE); // gap shadow
+  gfx.roundRect(6, 21, 4, 4, 2).fill(bodyDark);
+  gfx.roundRect(12, 21, 4, 4, 2).fill(bodyDark);
+  gfx.rect(10, 22, 2, 3).fill(OUTLINE); // gap shadow
 
   container.addChild(gfx);
   return container;
@@ -61,26 +67,27 @@ export function createMiniCrewmate(color: number = DEFAULT_COLOR): Container {
   const container = new Container();
   const gfx = new Graphics();
 
-  const bodyDark = darken(color, 0.28);
+  const bodyDark = darken(color, 0.25);
 
   // Outlines
-  gfx.roundRect(0, 2, 3, 7, 1).fill(OUTLINE);   // backpack outline
-  gfx.roundRect(1, -1, 9, 13, 4).fill(OUTLINE);  // body outline
+  gfx.roundRect(0, 2, 3, 7, 1).fill(OUTLINE);   // backpack
+  gfx.roundRect(1, -1, 9, 13, 5).fill(OUTLINE);  // body
 
   // Backpack
   gfx.roundRect(1, 3, 2, 5, 1).fill(bodyDark);
 
-  // Body
-  gfx.roundRect(2, 0, 8, 10, 3).fill(color);
+  // Body — capsule (radius 4 on width 8)
+  gfx.roundRect(2, 0, 8, 11, 4).fill(color);
+  gfx.roundRect(2, 1, 1, 9, 0).fill(darken(color, 0.18)); // shadow strip
 
-  // Visor — shield shape
-  gfx.roundRect(5, 2, 4, 5, 2).fill(COLORS.VISOR_CYAN);
-  gfx.roundRect(6, 2, 2, 2, 0).fill(0xaaffff); // reflection
+  // Visor — oval
+  gfx.ellipse(7, 5, 3, 4).fill(COLORS.VISOR_CYAN);
+  gfx.roundRect(5, 2, 2, 2, 0).fill(0xdfffff); // reflection
 
   // Legs
-  gfx.roundRect(3, 9, 2, 2, 1).fill(bodyDark);
-  gfx.roundRect(6, 9, 2, 2, 1).fill(bodyDark);
-  gfx.rect(5, 9, 1, 2).fill(OUTLINE); // gap
+  gfx.roundRect(3, 10, 2, 2, 1).fill(bodyDark);
+  gfx.roundRect(6, 10, 2, 2, 1).fill(bodyDark);
+  gfx.rect(5, 10, 1, 2).fill(OUTLINE);
 
   container.addChild(gfx);
   return container;
