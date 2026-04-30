@@ -74,9 +74,13 @@ export class TitleScene extends Scene {
     }
 
     // --- Layer 2: title logo (PNG sprite) ---
+    // Texture is 2× (600×98); pin to logical 300×49 so it renders at the
+    // correct size on the 520-px-wide canvas regardless of source resolution.
     const logoTex = Assets.get('/sprites/logo-v2.png') as Texture;
     const title = new Sprite(logoTex);
     title.anchor.set(0.5);
+    title.width  = 300;
+    title.height = 49;
     title.x = GAME_WIDTH / 2;
     title.y = 80;
     this.root.addChild(title);

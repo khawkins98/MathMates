@@ -6,8 +6,8 @@ import { darken } from '@/utils';
 export const CREWMATE_TEXTURE_URL = '/sprites/crewmate-base.png';
 /**
  * Logical display size of the PNG crewmate.
- * Source texture is 260×292 px (2× native); displayed at 56×63 to preserve
- * the natural 130:146 aspect ratio of the extracted sprite.
+ * Source texture is 520×584 px (4× native, 2× the 2× extract); displayed at
+ * 56×63 to preserve the natural 130:146 aspect ratio of the extracted sprite.
  * Visor overlay coordinates below are calibrated to this display size.
  */
 const PNG_W = 56;
