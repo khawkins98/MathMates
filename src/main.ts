@@ -42,7 +42,7 @@ async function init() {
     logicalWidth: GAME_WIDTH,
     logicalHeight: GAME_HEIGHT,
     // filterSize: 2,
-    pixelScale: 2,
+    // pixelScale: 2,   ← renders at half-res; fonts below fontSize:14 blur badly
     integerScaling: true,
     eightBitSteps: 6,
   });
