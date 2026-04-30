@@ -16,14 +16,15 @@ const DEFAULT_COLOR = CREW_COLORS[0];
 const OUTLINE = 0x111111;
 
 /**
- * Creates a procedurally-drawn crewmate character at pixel scale.
+ * Creates a procedurally-drawn crewmate character at pixel scale (~21 × 26 px).
+ * Character faces right; backpack on left.
  *
- * Layout (~21 × 26 px, character faces right):
- *   Backpack — left/back side, thinner rounded rect
- *   Body     — tall capsule (radius=half-width → fully rounded top+bottom) + outline
- *   Visor    — large oval on the right/face side
- *   Shading  — 2 px dark strip on left edge + subtle highlight on upper-right
- *   Legs     — two small rounded rects at body base
+ * Body shape: circle (dome/head) + roundRect (torso) drawn as a compound shape.
+ * This gives the characteristic Among Us asymmetric bean: wide rounded dome on top,
+ * narrower flat-bottomed torso below.
+ *
+ * NOTE: If animation (walk cycle, reactions) is needed in future, migrating to
+ * PNG spritesheets with sprite.tint for colour-swapping would be the right move.
  */
 export function createCrewmateSprite(color: number = DEFAULT_COLOR): Container {
   const container = new Container();
@@ -31,37 +32,35 @@ export function createCrewmateSprite(color: number = DEFAULT_COLOR): Container {
 
   const bodyDark = darken(color, 0.25);
 
-  // --- Outlines (painted first — behind all fills) ---
-  gfx.roundRect(-1, 5, 5, 11, 2).fill(OUTLINE);  // backpack
-  gfx.roundRect(2, -1, 18, 24, 9).fill(OUTLINE);  // body
+  // --- Outlines (painted first — sit behind all fills) ---
+  gfx.roundRect(-1, 6, 6, 12, 3).fill(OUTLINE);  // backpack
+  gfx.circle(11, 8, 9).fill(OUTLINE);             // dome
+  gfx.roundRect(3, 9, 16, 14, 4).fill(OUTLINE);   // torso
 
-  // --- Backpack (left/back side) ---
-  gfx.roundRect(0, 6, 3, 9, 2).fill(bodyDark);
-  gfx.rect(0, 8, 1, 4).fill({ color: 0xffffff, alpha: 0.25 }); // highlight strip
+  // --- Backpack ---
+  gfx.roundRect(0, 7, 4, 10, 2).fill(bodyDark);
+  gfx.rect(0, 9, 1, 5).fill({ color: 0xffffff, alpha: 0.25 }); // highlight strip
 
-  // --- Body — tall capsule (radius 8 on width 16 gives fully rounded ends) ---
-  gfx.roundRect(3, 0, 16, 22, 8).fill(color);
+  // --- Body: dome (circle) + torso (roundRect) compound ---
+  // Together these form the bean: wide rounded head, narrower rectangular torso.
+  gfx.circle(11, 8, 8).fill(color);
+  gfx.roundRect(4, 10, 14, 12, 3).fill(color);
 
-  // Inner shading: 2 px darker strip on left/back edge
-  gfx.roundRect(3, 2, 2, 18, 1).fill(darken(color, 0.2));
-  // Subtle upper-right highlight (light source from front-right)
-  gfx.ellipse(16, 6, 4, 6).fill({ color: 0xffffff, alpha: 0.1 });
-
-  // --- Visor — large oval, upper-right face area ---
-  gfx.ellipse(14, 9, 5, 7).fill(COLORS.VISOR_CYAN);
-  gfx.roundRect(10, 4, 3, 2, 1).fill(0xdfffff); // glass reflection
+  // --- Visor — oval on the upper-right face area ---
+  gfx.ellipse(14, 9, 5, 6).fill(COLORS.VISOR_CYAN);
+  gfx.roundRect(10, 4, 3, 3, 1).fill(0xdfffff); // glass reflection
 
   // --- Legs ---
-  gfx.roundRect(6, 21, 4, 4, 2).fill(bodyDark);
-  gfx.roundRect(12, 21, 4, 4, 2).fill(bodyDark);
-  gfx.rect(10, 22, 2, 3).fill(OUTLINE); // gap shadow
+  gfx.roundRect(6, 21, 4, 5, 2).fill(bodyDark);
+  gfx.roundRect(12, 21, 4, 5, 2).fill(bodyDark);
+  gfx.rect(10, 19, 2, 7).fill(OUTLINE); // gap between legs
 
   container.addChild(gfx);
   return container;
 }
 
 /**
- * Creates a tiny 10×12 crewmate for HUD life icons.
+ * Creates a tiny ~11×13 px crewmate for HUD life icons.
  */
 export function createMiniCrewmate(color: number = DEFAULT_COLOR): Container {
   const container = new Container();
@@ -70,19 +69,20 @@ export function createMiniCrewmate(color: number = DEFAULT_COLOR): Container {
   const bodyDark = darken(color, 0.25);
 
   // Outlines
-  gfx.roundRect(0, 2, 3, 7, 1).fill(OUTLINE);   // backpack
-  gfx.roundRect(1, -1, 9, 13, 5).fill(OUTLINE);  // body
+  gfx.roundRect(-1, 2, 4, 7, 2).fill(OUTLINE);  // backpack
+  gfx.circle(6, 4, 5).fill(OUTLINE);             // dome
+  gfx.roundRect(1, 4, 9, 8, 3).fill(OUTLINE);    // torso
 
   // Backpack
-  gfx.roundRect(1, 3, 2, 5, 1).fill(bodyDark);
+  gfx.roundRect(0, 3, 2, 5, 1).fill(bodyDark);
 
-  // Body — capsule (radius 4 on width 8)
-  gfx.roundRect(2, 0, 8, 11, 4).fill(color);
-  gfx.roundRect(2, 1, 1, 9, 0).fill(darken(color, 0.18)); // shadow strip
+  // Body
+  gfx.circle(6, 4, 4).fill(color);
+  gfx.roundRect(2, 5, 7, 6, 2).fill(color);
 
-  // Visor — oval
-  gfx.ellipse(7, 5, 3, 4).fill(COLORS.VISOR_CYAN);
-  gfx.roundRect(5, 2, 2, 2, 0).fill(0xdfffff); // reflection
+  // Visor
+  gfx.ellipse(7, 4, 3, 3).fill(COLORS.VISOR_CYAN);
+  gfx.roundRect(5, 2, 2, 2, 0).fill(0xdfffff);
 
   // Legs
   gfx.roundRect(3, 10, 2, 2, 1).fill(bodyDark);
