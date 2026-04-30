@@ -153,6 +153,7 @@ export class GameScene extends Scene {
       crewmate.pivot.set(7, 6.5);   // centre of 14×13 art
       crewmate.y = 16;
       crewmate.setWalking(true);
+      crewmate.pop();
       this.player.addChild(crewmate);
       this.playerCrewmateSprite = crewmate;
     }
@@ -223,6 +224,9 @@ export class GameScene extends Scene {
       this.eliminationOverlay.update(dt);
     }
 
+    // Keep cell flash/flip animations running even during elimination overlay
+    this.grid?.update(dt);
+
     // Process pause/unpause even while paused
     if (this.paused) {
       const action = this.manager.input.shift();
@@ -239,9 +243,6 @@ export class GameScene extends Scene {
     this.player?.update(dt);
     this.playerCrewmateSprite?.update(dt);
     for (const s of this.aiCrewmateSprites) s.update(dt);
-
-    // Update grid cell flash animations
-    this.grid?.update(dt);
 
     // Update HUD (impostor warning pulse)
     this.hud?.update(dt);
@@ -403,6 +404,7 @@ export class GameScene extends Scene {
     if (wasCorrect) {
       this.scoring.recordCorrect();
       this.manager.sound.cellEat();
+      this.playerCrewmateSprite?.pop();
 
       this.hud.setScore(this.scoring.score);
       this.hud.setMultiplier(this.scoring.multiplier);
@@ -753,6 +755,7 @@ export class GameScene extends Scene {
       sprite.y = 18;
       sprite.x = (i - 1) * 10;
       sprite.setWalking(true);
+      sprite.pop();
       crewmate.addChild(sprite);
       this.aiCrewmateSprites.push(sprite);
       this.grid.addChild(crewmate);

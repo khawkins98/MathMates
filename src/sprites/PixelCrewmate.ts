@@ -70,9 +70,10 @@ export class PixelCrewmate extends Container {
   private readonly bodyGfx: Graphics;
   private readonly legGfx: Graphics;
 
-  private _elapsed   = 0;
-  private _walking   = false;
-  private _popT      = -1;   // -1 = inactive
+  private _elapsed    = 0;
+  private _walking    = false;
+  private _popT       = -1;   // -1 = inactive
+  private _baseScale  = 1;    // scale at the moment pop() was first triggered
   private _facingLeft = false;
 
   constructor(color: number = 0xc51111) {
@@ -114,12 +115,12 @@ export class PixelCrewmate extends Container {
       const dur = 450;
       if (this._popT < dur) {
         const t = this._popT / dur;
-        // Spring: scale up to 1.4 then settle back to 1.0
+        // Spring: scale up to 1.4× base then settle back to base
         const s = 1 + 0.4 * Math.sin(t * Math.PI) * (1 - t * 0.6);
-        this.scale.set(s);
+        this.scale.set(this._baseScale * s);
       } else {
         this._popT = -1;
-        this.scale.set(1);
+        this.scale.set(this._baseScale);
       }
     }
   }
@@ -153,6 +154,11 @@ export class PixelCrewmate extends Container {
 
   /** Trigger a scale-bounce pop (e.g. correct-answer celebration). */
   pop(): void {
+    if (this._popT < 0) {
+      // Capture the caller's base scale only when not already mid-animation,
+      // so retriggering doesn't corrupt the permanent resting scale.
+      this._baseScale = this.scale.x;
+    }
     this._popT = 0;
   }
 

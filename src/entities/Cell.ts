@@ -5,6 +5,7 @@ import { CELL_SIZE, COLORS } from '../constants';
 const CORNER_RADIUS = 6;
 const BORDER_WIDTH = 2;
 const FLASH_DURATION = 300; // ms
+const FLIP_DURATION  = 200; // ms — scale-X squish when a cell is consumed
 
 const textStyle = new TextStyle({
   fontFamily: 'monospace',
@@ -23,9 +24,13 @@ export class Cell extends Container {
   private _sus = false;
   private flashTimer = 0;
   private flashType: 'correct' | 'error' | null = null;
+  private flipTimer  = 0;
 
   constructor() {
     super();
+
+    // Pivot at visual centre so scale.x flips around the midpoint.
+    this.pivot.set(CELL_SIZE / 2, CELL_SIZE / 2);
 
     this.bg = new Graphics();
     this.addChild(this.bg);
@@ -87,6 +92,7 @@ export class Cell extends Container {
   flash(type: 'correct' | 'error'): void {
     this.flashType = type;
     this.flashTimer = FLASH_DURATION;
+    this.flipTimer  = FLIP_DURATION;
     this._state = type === 'correct' ? 'correct_flash' : 'error_flash';
     this.drawCell();
   }
@@ -109,6 +115,18 @@ export class Cell extends Container {
         // Animate fade: interpolate fill from flash color back to normal
         const progress = 1 - this.flashTimer / FLASH_DURATION;
         this.drawFlash(progress);
+      }
+    }
+
+    if (this.flipTimer > 0) {
+      this.flipTimer -= dt;
+      if (this.flipTimer <= 0) {
+        this.flipTimer = 0;
+        this.scale.x = 1;
+      } else {
+        // V-shape: scale.x goes 1 → 0 (edge-on) → 1 over FLIP_DURATION
+        const p = 1 - this.flipTimer / FLIP_DURATION;
+        this.scale.x = Math.abs(1 - 2 * p);
       }
     }
   }
