@@ -1,10 +1,11 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
-import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { SpriteButton } from '@/sprites/SpriteButton';
+import { CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { PixelCrewmate } from '@/sprites/PixelCrewmate';
 import { createGear } from '@/sprites/GearIcon';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
 
 const SPAWN_MARGIN = 60;
 const SPEED_MIN = 0.016;
@@ -21,11 +22,8 @@ const TITLE_EXTRA_COLORS = [
 
 const TITLE_COLORS = [...CREW_COLORS, ...TITLE_EXTRA_COLORS];
 
-// Green used for the START button (matches concept art)
-const START_BTN_COLOR = 0x2db85a;
-
 interface DriftingCrewmate {
-  sprite: Container;
+  sprite: PixelCrewmate;
   x: number;
   y: number;
   vx: number;
@@ -40,7 +38,7 @@ interface DriftingCrewmate {
 export class TitleScene extends Scene {
   private manager: SceneManager;
   private crewmates: DriftingCrewmate[] = [];
-  private startButton: ButtonSprite | null = null;
+  private startButton: SpriteButton | null = null;
   /** Wrapper container for pulsing the START button independently of its press/hover scale. */
   private startBtnWrapper: Container | null = null;
   private elapsed = 0;
@@ -59,7 +57,8 @@ export class TitleScene extends Scene {
 
     // --- Layer 1: drifting crewmates (behind title / UI) ---
     for (let i = 0; i < TITLE_COLORS.length; i++) {
-      const sprite = createCrewmateSprite(TITLE_COLORS[i]);
+      const sprite = new PixelCrewmate(TITLE_COLORS[i]);
+      sprite.setWalking(true);
       this.root.addChild(sprite);
 
       const cm: DriftingCrewmate = {
@@ -76,30 +75,24 @@ export class TitleScene extends Scene {
       this.crewmates.push(cm);
     }
 
-    // --- Layer 2: title ---
-    const titleStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 46,
-      fontWeight: 'bold',
-      fill: COLORS.STAR_WHITE,
-      align: 'center',
-      dropShadow: {
-        color: 0x0066ff,
-        distance: 4,
-        angle: Math.PI / 4,
-        blur: 0,
-        alpha: 0.85,
-      },
-    });
-    const title = new Text({ text: 'MATHMATES', style: titleStyle });
+    // --- Layer 2: title logo (PNG sprite) ---
+    // Texture is 2× (600×98); pin to logical 300×49 so it renders at the
+    // correct size on the 520-px-wide canvas regardless of source resolution.
+    const logoTex = Assets.get('/sprites/logo-v2.png') as Texture;
+    const title = new Sprite(logoTex);
     title.anchor.set(0.5);
+    title.width  = 300;
+    title.height = 49;
     title.x = GAME_WIDTH / 2;
     title.y = 80;
     this.root.addChild(title);
 
-    // --- Layer 3: START button (wrapped for centered pulse) ---
-    const BTN_W = 180, BTN_H = 46;
-    this.startButton = new ButtonSprite('START', BTN_W, BTN_H, START_BTN_COLOR, 16, true);
+    // --- Layer 3: START button (PNG sprite-swap button, wrapped for centered pulse) ---
+    const BTN_W = 160, BTN_H = 53;
+    const texIdle     = Assets.get('/sprites/start-idle.png')     as Texture;
+    const texHover    = Assets.get('/sprites/start-hover.png')    as Texture;
+    const texPressed  = Assets.get('/sprites/start-pressed.png')  as Texture;
+    this.startButton  = new SpriteButton(texIdle, texHover, texPressed, BTN_W, BTN_H);
     this.startButton.onClick = () => {
       this.manager.sound.buttonClick();
       this.manager.goto('SELECT');
@@ -143,9 +136,10 @@ export class TitleScene extends Scene {
       cm.y += cm.vy * dt;
       cm.depth += cm.depthRate * dt;
       cm.sprite.rotation += cm.rotSpeed * dt;
+      cm.sprite.update(dt);
 
       const d = Math.max(0, Math.min(1, cm.depth));
-      cm.sprite.scale.set(0.2 + d * 1.1);
+      cm.sprite.scale.set(0.8 + d * 4.4);
       cm.sprite.alpha = 0.1 + d * 0.85;
       cm.sprite.x = cm.x;
       cm.sprite.y = cm.y;

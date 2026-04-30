@@ -9,7 +9,8 @@ import { HUD } from '@/ui/HUD';
 import { EliminationOverlay, type EliminationVariant } from '@/ui/EliminationOverlay';
 import { ScoringSystem } from '@/systems/ScoringSystem';
 import { LivesSystem } from '@/systems/LivesSystem';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { PixelCrewmate } from '@/sprites/PixelCrewmate';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
 import { pickEdgeCells, manhattan } from '@/entities/gridHelpers';
@@ -68,6 +69,10 @@ export class GameScene extends Scene {
   // Eject / floating text animations
   private ejectingCrewmates: EjectingCrewmate[] = [];
   private floatingTexts: FloatingText[] = [];
+
+  // Pixel crewmate sprite references for per-frame animation
+  private playerCrewmateSprite: PixelCrewmate | null = null;
+  private aiCrewmateSprites: PixelCrewmate[] = [];
 
   // UI
   private hud: HUD | null = null;
@@ -143,11 +148,14 @@ export class GameScene extends Scene {
       impostorSprite.scale.set(0.8);
       this.player.addChild(impostorSprite);
     } else {
-      const crewmate = createCrewmateSprite(CREW_COLORS[0]);
-      crewmate.pivot.set(11, 12);
+      const crewmate = new PixelCrewmate(CREW_COLORS[0]);
+      crewmate.scale.set(16 / 14);  // ~1.14 → displays ~16 px wide
+      crewmate.pivot.set(7, 6.5);   // centre of 14×13 art
       crewmate.y = 16;
-      crewmate.scale.set(0.8);
+      crewmate.setWalking(true);
+      crewmate.pop();
       this.player.addChild(crewmate);
+      this.playerCrewmateSprite = crewmate;
     }
     this.player.moveTo(0, 0);
     this.grid.addChild(this.player);
@@ -216,6 +224,9 @@ export class GameScene extends Scene {
       this.eliminationOverlay.update(dt);
     }
 
+    // Keep cell flash/flip animations running even during elimination overlay
+    this.grid?.update(dt);
+
     // Process pause/unpause even while paused
     if (this.paused) {
       const action = this.manager.input.shift();
@@ -230,9 +241,8 @@ export class GameScene extends Scene {
 
     // Update player idle bobbing animation
     this.player?.update(dt);
-
-    // Update grid cell flash animations
-    this.grid?.update(dt);
+    this.playerCrewmateSprite?.update(dt);
+    for (const s of this.aiCrewmateSprites) s.update(dt);
 
     // Update HUD (impostor warning pulse)
     this.hud?.update(dt);
@@ -303,6 +313,7 @@ export class GameScene extends Scene {
     // Null out references
     this.grid = null;
     this.player = null;
+    this.playerCrewmateSprite = null;
     this.hud = null;
     this.eliminationOverlay = null;
     this.scoring = null;
@@ -393,6 +404,7 @@ export class GameScene extends Scene {
     if (wasCorrect) {
       this.scoring.recordCorrect();
       this.manager.sound.cellEat();
+      this.playerCrewmateSprite?.pop();
 
       this.hud.setScore(this.scoring.score);
       this.hud.setMultiplier(this.scoring.multiplier);
@@ -723,6 +735,7 @@ export class GameScene extends Scene {
 
   private spawnAICrewmates(): void {
     if (!this.grid || !this.player || !this.stage) return;
+    if (this.aiCrewmates.length > 0) this.removeAllAICrewmates();
 
     const { col, row } = this.player.getGridPosition();
     const edgeCells = pickEdgeCells(AI_CREWMATE_COUNT, col, row);
@@ -736,12 +749,15 @@ export class GameScene extends Scene {
         crewmate.spawnAt(edgeCells[i].col, edgeCells[i].row);
       }
 
-      const sprite = createCrewmateSprite(CREW_COLORS[personality.colorIndex]);
-      sprite.pivot.set(11, 12);
+      const sprite = new PixelCrewmate(CREW_COLORS[personality.colorIndex]);
+      sprite.scale.set(13 / 14);  // ~0.93 → displays ~13 px wide
+      sprite.pivot.set(7, 6.5);   // centre of 14×13 art
       sprite.y = 18;
       sprite.x = (i - 1) * 10;
-      sprite.scale.set(0.65);
+      sprite.setWalking(true);
+      sprite.pop();
       crewmate.addChild(sprite);
+      this.aiCrewmateSprites.push(sprite);
       this.grid.addChild(crewmate);
       this.aiCrewmates.push(crewmate);
     }
@@ -756,6 +772,7 @@ export class GameScene extends Scene {
       crewmate.destroy({ children: true });
     }
     this.aiCrewmates = [];
+    this.aiCrewmateSprites = [];
   }
 
   private updateAICrewmates(dt: number): void {

@@ -2,7 +2,8 @@ import { Container, Text, TextStyle } from 'pixi.js';
 import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { PixelCrewmate } from '@/sprites/PixelCrewmate';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { StageDefinition, GameMode, LoseReason } from '@/types';
@@ -21,6 +22,7 @@ export class GameOverScene extends Scene {
   private elapsed = 0;
   private gameOverText: Text | null = null;
   private ghostCrewmate: Container | null = null;
+  private ghostPixelCrewmate: PixelCrewmate | null = null;
   private ghostBaseY = 0;
 
   constructor(manager: SceneManager) {
@@ -63,7 +65,12 @@ export class GameOverScene extends Scene {
     if (isImpostor) {
       this.ghostCrewmate = createImpostorSprite();
     } else {
-      this.ghostCrewmate = createCrewmateSprite(CREW_COLORS[0]);
+      const ghost = new PixelCrewmate(CREW_COLORS[0]);
+      ghost.scale.set(20 / 14);  // ~1.43 → displays ~20 px wide
+      ghost.setWalking(true);
+      ghost.pop();
+      this.ghostCrewmate = ghost;
+      this.ghostPixelCrewmate = ghost;
     }
     this.ghostCrewmate.alpha = 0.25;
     this.ghostCrewmate.x = GAME_WIDTH / 2 - 10;
@@ -151,12 +158,14 @@ export class GameOverScene extends Scene {
       // Slight horizontal sway
       this.ghostCrewmate.x = GAME_WIDTH / 2 - 10 + Math.sin(t * 0.7) * 15;
     }
+    this.ghostPixelCrewmate?.update(dt);
   }
 
   exit(): void {
     this.destroyChildren();
     this.gameOverText = null;
     this.ghostCrewmate = null;
+    this.ghostPixelCrewmate = null;
     this.data = null;
     this.elapsed = 0;
   }

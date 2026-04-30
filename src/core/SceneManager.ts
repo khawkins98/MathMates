@@ -1,10 +1,20 @@
-import { Application, Container } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { Scene } from './Scene';
 import { InputManager } from './InputManager';
 import { TransitionOverlay } from './TransitionOverlay';
 import { SoundManager } from '@/audio/SoundManager';
 import { SaveManager } from '@/persistence/SaveManager';
+import { GAME_WIDTH, GAME_HEIGHT, COLORS, PIXEL_FONT } from '@/constants';
 import type { GameStateKey } from '@/types';
+
+/** All PNG sprite assets — preloaded once before scenes boot. */
+const SPRITE_ASSETS = [
+  '/sprites/logo-v2.png',
+  '/sprites/start-idle.png',
+  '/sprites/start-hover.png',
+  '/sprites/start-pressed.png',
+  '/sprites/start-disabled.png',
+] as const;
 
 export class SceneManager {
   public app: Application;
@@ -59,7 +69,19 @@ export class SceneManager {
   }
 
   private async _bootstrap(): Promise<void> {
-    // Dynamically import all scenes to avoid circular deps
+    // ── 0. Show a progress bar while assets load ──────────────────────────────
+    const loadingUI = this._createLoadingScreen();
+    this._stage.addChild(loadingUI.container);
+
+    // ── 1. Preload PNG sprite assets so synchronous Texture lookups work later ──
+    await Assets.load([...SPRITE_ASSETS], (progress: number) => {
+      loadingUI.setProgress(progress);
+    });
+
+    this._stage.removeChild(loadingUI.container);
+    loadingUI.container.destroy({ children: true });
+
+    // ── 2. Dynamically import all scenes to avoid circular deps ──
     const [
       { TitleScene },
       { SelectScene },
@@ -99,5 +121,45 @@ export class SceneManager {
     });
 
     await this.goto('TITLE');
+  }
+
+  private _createLoadingScreen(): { container: Container; setProgress: (p: number) => void } {
+    const BAR_W = 200;
+    const BAR_H = 8;
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+
+    const container = new Container();
+
+    // Label
+    const label = new Text({
+      text: 'LOADING',
+      style: new TextStyle({
+        fontFamily: PIXEL_FONT,
+        fontSize: 14,
+        fill: COLORS.HULL_GREY,
+      }),
+    });
+    label.anchor.set(0.5);
+    label.x = cx;
+    label.y = cy - 18;
+    container.addChild(label);
+
+    // Bar background
+    const bg = new Graphics();
+    bg.roundRect(cx - BAR_W / 2, cy - BAR_H / 2, BAR_W, BAR_H, 3).fill(0x222244);
+    container.addChild(bg);
+
+    // Bar fill (starts at 0 width)
+    const fill = new Graphics();
+    container.addChild(fill);
+
+    const setProgress = (p: number): void => {
+      const w = Math.max(6, Math.round(BAR_W * p));
+      fill.clear();
+      fill.roundRect(cx - BAR_W / 2, cy - BAR_H / 2, w, BAR_H, 3).fill(COLORS.VISOR_CYAN);
+    };
+
+    return { container, setProgress };
   }
 }

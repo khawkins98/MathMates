@@ -15,8 +15,9 @@ export class Grid extends Container {
     for (let row = 0; row < GRID_ROWS; row++) {
       for (let col = 0; col < GRID_COLS; col++) {
         const cell = new Cell();
-        cell.x = col * (CELL_SIZE + GUTTER);
-        cell.y = row * (CELL_SIZE + GUTTER);
+        // Offset by half cell-size to match Cell's pivot at (CELL_SIZE/2, CELL_SIZE/2)
+        cell.x = col * (CELL_SIZE + GUTTER) + CELL_SIZE / 2;
+        cell.y = row * (CELL_SIZE + GUTTER) + CELL_SIZE / 2;
         this.cells.push(cell);
         this.addChild(cell);
       }
