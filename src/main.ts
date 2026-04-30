@@ -19,7 +19,10 @@ async function init() {
     backgroundColor: COLORS.DEEP_SPACE,
     antialias: false,
     roundPixels: true,
-    resolution: 1,
+    // Match device pixel ratio so text renders at native retina density.
+    // PixiJS keeps the logical coordinate space at GAME_WIDTH×GAME_HEIGHT;
+    // only the internal canvas bitmap doubles (or triples) in size.
+    resolution: window.devicePixelRatio || 1,
   });
 
   const container = document.getElementById('app');
