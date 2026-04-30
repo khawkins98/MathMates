@@ -1,10 +1,10 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
-import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { SpriteButton } from '@/sprites/SpriteButton';
+import { createCrewmateSpritePng, CREW_COLORS } from '@/sprites/CrewmateSprite';
 import { createGear } from '@/sprites/GearIcon';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
 
 const SPAWN_MARGIN = 60;
 const SPEED_MIN = 0.016;
@@ -20,9 +20,6 @@ const TITLE_EXTRA_COLORS = [
 ] as const;
 
 const TITLE_COLORS = [...CREW_COLORS, ...TITLE_EXTRA_COLORS];
-
-// Green used for the START button (matches concept art)
-const START_BTN_COLOR = 0x2db85a;
 
 interface DriftingCrewmate {
   sprite: Container;
@@ -40,7 +37,7 @@ interface DriftingCrewmate {
 export class TitleScene extends Scene {
   private manager: SceneManager;
   private crewmates: DriftingCrewmate[] = [];
-  private startButton: ButtonSprite | null = null;
+  private startButton: SpriteButton | null = null;
   /** Wrapper container for pulsing the START button independently of its press/hover scale. */
   private startBtnWrapper: Container | null = null;
   private elapsed = 0;
@@ -59,7 +56,7 @@ export class TitleScene extends Scene {
 
     // --- Layer 1: drifting crewmates (behind title / UI) ---
     for (let i = 0; i < TITLE_COLORS.length; i++) {
-      const sprite = createCrewmateSprite(TITLE_COLORS[i]);
+      const sprite = createCrewmateSpritePng(TITLE_COLORS[i]);
       this.root.addChild(sprite);
 
       const cm: DriftingCrewmate = {
@@ -76,30 +73,20 @@ export class TitleScene extends Scene {
       this.crewmates.push(cm);
     }
 
-    // --- Layer 2: title ---
-    const titleStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 46,
-      fontWeight: 'bold',
-      fill: COLORS.STAR_WHITE,
-      align: 'center',
-      dropShadow: {
-        color: 0x0066ff,
-        distance: 4,
-        angle: Math.PI / 4,
-        blur: 0,
-        alpha: 0.85,
-      },
-    });
-    const title = new Text({ text: 'MATHMATES', style: titleStyle });
+    // --- Layer 2: title logo (PNG sprite) ---
+    const logoTex = Assets.get('/sprites/logo-v2.png') as Texture;
+    const title = new Sprite(logoTex);
     title.anchor.set(0.5);
     title.x = GAME_WIDTH / 2;
     title.y = 80;
     this.root.addChild(title);
 
-    // --- Layer 3: START button (wrapped for centered pulse) ---
-    const BTN_W = 180, BTN_H = 46;
-    this.startButton = new ButtonSprite('START', BTN_W, BTN_H, START_BTN_COLOR, 16, true);
+    // --- Layer 3: START button (PNG sprite-swap button, wrapped for centered pulse) ---
+    const BTN_W = 160, BTN_H = 53;
+    const texIdle     = Assets.get('/sprites/start-idle.png')     as Texture;
+    const texHover    = Assets.get('/sprites/start-hover.png')    as Texture;
+    const texPressed  = Assets.get('/sprites/start-pressed.png')  as Texture;
+    this.startButton  = new SpriteButton(texIdle, texHover, texPressed, BTN_W, BTN_H);
     this.startButton.onClick = () => {
       this.manager.sound.buttonClick();
       this.manager.goto('SELECT');
