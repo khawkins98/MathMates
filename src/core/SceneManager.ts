@@ -1,10 +1,22 @@
-import { Application, Container } from 'pixi.js';
+import { Application, Assets, Container } from 'pixi.js';
 import { Scene } from './Scene';
 import { InputManager } from './InputManager';
 import { TransitionOverlay } from './TransitionOverlay';
 import { SoundManager } from '@/audio/SoundManager';
 import { SaveManager } from '@/persistence/SaveManager';
 import type { GameStateKey } from '@/types';
+
+/** All PNG sprite assets — preloaded once before scenes boot. */
+const SPRITE_ASSETS = [
+  '/sprites/crewmate-base.png',
+  '/sprites/crewmate-selected.png',
+  '/sprites/logo-v1.png',
+  '/sprites/logo-v2.png',
+  '/sprites/start-idle.png',
+  '/sprites/start-hover.png',
+  '/sprites/start-pressed.png',
+  '/sprites/start-disabled.png',
+] as const;
 
 export class SceneManager {
   public app: Application;
@@ -59,7 +71,10 @@ export class SceneManager {
   }
 
   private async _bootstrap(): Promise<void> {
-    // Dynamically import all scenes to avoid circular deps
+    // ── 1. Preload PNG sprite assets so synchronous Texture lookups work later ──
+    await Assets.load([...SPRITE_ASSETS]);
+
+    // ── 2. Dynamically import all scenes to avoid circular deps ──
     const [
       { TitleScene },
       { SelectScene },

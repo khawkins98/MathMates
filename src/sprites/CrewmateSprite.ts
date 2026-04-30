@@ -1,6 +1,12 @@
-import { Container, Graphics } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite } from 'pixi.js';
 import { COLORS } from '@/constants';
 import { darken } from '@/utils';
+
+/** URL for the PNG crewmate base sprite (desaturated for tinting). */
+export const CREWMATE_TEXTURE_URL = '/sprites/crewmate-base.png';
+/** Logical display size of the PNG-based crewmate (matches concept-art proportions). */
+const PNG_W = 28;
+const PNG_H = 37;
 
 /** Available crewmate color palettes. */
 export const CREW_COLORS = [
@@ -56,6 +62,42 @@ export function createCrewmateSprite(color: number = DEFAULT_COLOR): Container {
   gfx.rect(10, 19, 2, 7).fill(OUTLINE); // gap between legs
 
   container.addChild(gfx);
+  return container;
+}
+
+/**
+ * Creates a PNG-sprite-based crewmate using the concept-art extracted texture.
+ *
+ * The texture (`/sprites/crewmate-base.png`) is a desaturated (max-channel
+ * greyscale) version of the concept-art crewmate.  PixiJS multiplies every
+ * pixel by `sprite.tint`, so the body correctly adopts the requested colour.
+ *
+ * A small cyan Graphics overlay is drawn on top to restore the visor colour,
+ * which would otherwise be tinted along with the body.
+ *
+ * **Requires** the texture to be preloaded via
+ * `await Assets.load(CREWMATE_TEXTURE_URL)` before this function is called.
+ *
+ * @param color  Hex crew colour (one of CREW_COLORS). Defaults to red.
+ * @returns Container sized PNG_W × PNG_H at origin (0,0).
+ */
+export function createCrewmateSpritePng(color: number = DEFAULT_COLOR): Container {
+  const container = new Container();
+
+  // Body — desaturated PNG tinted to the requested crew colour
+  const body = new Sprite(Assets.get(CREWMATE_TEXTURE_URL));
+  body.tint = color;
+  body.width = PNG_W;
+  body.height = PNG_H;
+  container.addChild(body);
+
+  // Visor overlay — fixed cyan so it looks the same regardless of body tint.
+  // Positions calibrated against the 28×37 px sprite (scaled from 106×141 source).
+  const visor = new Graphics();
+  visor.ellipse(20, 10, 5, 7).fill(COLORS.VISOR_CYAN);
+  visor.roundRect(16, 5, 4, 3, 1).fill({ color: 0xdfffff, alpha: 0.85 }); // glass highlight
+  container.addChild(visor);
+
   return container;
 }
 
