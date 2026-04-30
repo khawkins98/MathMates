@@ -39,7 +39,11 @@ The game renders to a PixiJS v8 WebGL/WebGPU canvas at a fixed logical resolutio
 
 `EightBitFilter` (see `src/filters/EightBitFilter.ts`) is a custom GLSL/WGSL post-process filter that quantises each RGB channel to N discrete levels (default 6 → 216 colours, like classic 8-bit palettes) with a light saturation boost. It runs as a PixiJS filter on the game container and is implemented for both WebGL2 and WebGPU so it works regardless of which renderer PixiJS selects.
 
-### Why `pixelScale: 2` is disabled
+### Title screen concept
+
+The title screen follows the concept art: a deep-space background with a star field (70 random 1–2 px dots) and a wispy blue nebula in the upper portion (layered low-alpha ellipses). Nine crewmates drift in from screen edges — the core 6 game colours plus cyan, purple, and lime defined as `TITLE_EXTRA_COLORS` in `TitleScene.ts` so the extra colours don't affect gameplay palettes. The START button uses `pixelBorder: true` on `ButtonSprite`, which draws a dark outer ring, a 2 px inset coloured fill, and a top highlight strip. The button is wrapped in a parent `Container` so the breathing pulse (`±3 %`, `2.5 rad/s`) scales from the button's centre without interfering with `ButtonSprite`'s own press/hover scale feedback.
+
+
 
 `PixelDisplay` supports a `pixelScale` option that renders the game to a half-size RenderTexture then upscales via nearest-neighbour — a classic "true low-res" effect. This was tried and disabled because "Press Start 2P" at `fontSize ≤ 12` becomes illegible after the half-res round-trip (the font renders at ~5–6px in the texture). The `image-rendering: pixelated` + `integerScaling` + `EightBitFilter` combination achieves the retro look without sacrificing readability.
 

@@ -12,6 +12,7 @@ export class ButtonSprite extends Container {
   private bgColor: number;
   private btnWidth: number;
   private btnHeight: number;
+  private pixelBorder: boolean;
 
   /** Callback invoked on click/tap. */
   public onClick: (() => void) | null = null;
@@ -22,6 +23,8 @@ export class ButtonSprite extends Container {
     height: number,
     bgColor: number = COLORS.HULL_GREY,
     fontSize: number = 14,
+    /** Draw a pixel-art double-border: dark outer ring + highlight strip. */
+    pixelBorder: boolean = false,
   ) {
     super();
 
@@ -31,6 +34,7 @@ export class ButtonSprite extends Container {
 
     // Background
     this.bg = new Graphics();
+    this.pixelBorder = pixelBorder;
     this.drawBg(bgColor);
     this.addChild(this.bg);
 
@@ -71,9 +75,24 @@ export class ButtonSprite extends Container {
 
   private drawBg(color: number): void {
     this.bg.clear();
-    this.bg
-      .roundRect(0, 0, this.btnWidth, this.btnHeight, CORNER_RADIUS)
-      .fill(color);
+    if (this.pixelBorder) {
+      // Dark outer ring
+      this.bg
+        .roundRect(0, 0, this.btnWidth, this.btnHeight, CORNER_RADIUS)
+        .fill(0x0a0a1a);
+      // Main colored fill (2 px inset)
+      this.bg
+        .roundRect(2, 2, this.btnWidth - 4, this.btnHeight - 4, CORNER_RADIUS - 1)
+        .fill(color);
+      // Top highlight strip
+      this.bg
+        .roundRect(4, 3, this.btnWidth - 8, 3, 1)
+        .fill({ color: 0xffffff, alpha: 0.2 });
+    } else {
+      this.bg
+        .roundRect(0, 0, this.btnWidth, this.btnHeight, CORNER_RADIUS)
+        .fill(color);
+    }
   }
 
   private onPointerOver(): void {
