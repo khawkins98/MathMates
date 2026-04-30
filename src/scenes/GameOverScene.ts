@@ -2,7 +2,8 @@ import { Container, Text, TextStyle } from 'pixi.js';
 import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
 import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createCrewmateSpritePng, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { PixelCrewmate } from '@/sprites/PixelCrewmate';
 import { createImpostorSprite } from '@/sprites/ImpostorSprite';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
 import type { StageDefinition, GameMode, LoseReason } from '@/types';
@@ -63,7 +64,9 @@ export class GameOverScene extends Scene {
     if (isImpostor) {
       this.ghostCrewmate = createImpostorSprite();
     } else {
-      this.ghostCrewmate = createCrewmateSpritePng(CREW_COLORS[0], 20, 22);
+      const ghost = new PixelCrewmate(CREW_COLORS[0]);
+      ghost.scale.set(20 / 14);  // ~1.43 → displays ~20 px wide
+      this.ghostCrewmate = ghost;
     }
     this.ghostCrewmate.alpha = 0.25;
     this.ghostCrewmate.x = GAME_WIDTH / 2 - 10;

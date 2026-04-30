@@ -2,7 +2,8 @@ import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { Scene } from '@/core/Scene';
 import { SceneManager } from '@/core/SceneManager';
 import { SpriteButton } from '@/sprites/SpriteButton';
-import { createCrewmateSpritePng, CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { CREW_COLORS } from '@/sprites/CrewmateSprite';
+import { PixelCrewmate } from '@/sprites/PixelCrewmate';
 import { createGear } from '@/sprites/GearIcon';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '@/constants';
 
@@ -22,7 +23,7 @@ const TITLE_EXTRA_COLORS = [
 const TITLE_COLORS = [...CREW_COLORS, ...TITLE_EXTRA_COLORS];
 
 interface DriftingCrewmate {
-  sprite: Container;
+  sprite: PixelCrewmate;
   x: number;
   y: number;
   vx: number;
@@ -56,7 +57,8 @@ export class TitleScene extends Scene {
 
     // --- Layer 1: drifting crewmates (behind title / UI) ---
     for (let i = 0; i < TITLE_COLORS.length; i++) {
-      const sprite = createCrewmateSpritePng(TITLE_COLORS[i]);
+      const sprite = new PixelCrewmate(TITLE_COLORS[i]);
+      sprite.setWalking(true);
       this.root.addChild(sprite);
 
       const cm: DriftingCrewmate = {
@@ -134,9 +136,10 @@ export class TitleScene extends Scene {
       cm.y += cm.vy * dt;
       cm.depth += cm.depthRate * dt;
       cm.sprite.rotation += cm.rotSpeed * dt;
+      cm.sprite.update(dt);
 
       const d = Math.max(0, Math.min(1, cm.depth));
-      cm.sprite.scale.set(0.2 + d * 1.1);
+      cm.sprite.scale.set(0.8 + d * 4.4);
       cm.sprite.alpha = 0.1 + d * 0.85;
       cm.sprite.x = cm.x;
       cm.sprite.y = cm.y;
