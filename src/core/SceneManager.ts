@@ -9,6 +9,7 @@ import type { GameStateKey } from '@/types';
 /** All PNG sprite assets — preloaded once before scenes boot. */
 const SPRITE_ASSETS = [
   '/sprites/crewmate-base.png',
+  '/sprites/crewmate-visor.png',
   '/sprites/crewmate-selected.png',
   '/sprites/logo-v1.png',
   '/sprites/logo-v2.png',
