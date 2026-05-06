@@ -1,6 +1,8 @@
 {
   "name": "mathmates",
   "version": "1.0.0",
+  "description": "Number Munchers-inspired KS1-KS2 maths game with a space-crew theme, built on PixiJS v8 + TypeScript.",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
