@@ -11,9 +11,9 @@ interface AIPersonality {
 }
 
 const PERSONALITIES: AIPersonality[] = [
-  { name: 'diligent', colour: '#ffd93d', moveInterval: 1000, dwellDuration: 2500, seekBroken: 0.85 },
-  { name: 'wanderer', colour: '#6bcb77', moveInterval: 800, dwellDuration: 3000, seekBroken: 0.4 },
-  { name: 'keen', colour: '#c77dff', moveInterval: 700, dwellDuration: 2000, seekBroken: 0.95 },
+  { name: 'diligent', colour: '#ffd93d', moveInterval: 1100, dwellDuration: 3500, seekBroken: 0.55 },
+  { name: 'wanderer', colour: '#6bcb77', moveInterval: 1300, dwellDuration: 4500, seekBroken: 0.25 },
+  { name: 'keen', colour: '#c77dff', moveInterval: 900, dwellDuration: 3000, seekBroken: 0.70 },
 ];
 
 function shortestWrappedStep(from: number, to: number, size: number): -1 | 0 | 1 {

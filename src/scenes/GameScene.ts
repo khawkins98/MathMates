@@ -97,7 +97,7 @@ export class GameScene implements Scene {
       this.wanderer.spawnAtEdge(this.player.col, this.player.row);
     }
     this.crewmates = params.mode === 'impostor'
-      ? [new AICrewmate(0, 4, 0), new AICrewmate(1, 0, 3), new AICrewmate(2, 4, 3)]
+      ? this.buildCrewmates(params.stageIndex)
       : [];
     this.score = 0;
     this.streak = 0;
@@ -426,6 +426,23 @@ export class GameScene implements Scene {
     this.ended = true;
     this.audio.eliminationSting();
     this.manager.goto('GAME_OVER', gameOverParams as unknown as Record<string, unknown>);
+  }
+
+  private buildCrewmates(stageIndex: number): AICrewmate[] {
+    // Stage 0: 1 slow wanderer — just a gentle obstacle
+    // Stage 1: 1 diligent crewmate — somewhat targeted
+    // Stage 2–3: 2 crewmates — meaningful pressure
+    // Stage 4+: 2 crewmates (keen + diligent) — toughest pairing, still beatable
+    if (stageIndex <= 0) {
+      return [new AICrewmate(1, 4, 0)];
+    }
+    if (stageIndex === 1) {
+      return [new AICrewmate(0, 4, 0)];
+    }
+    if (stageIndex <= 3) {
+      return [new AICrewmate(0, 4, 0), new AICrewmate(1, 0, 3)];
+    }
+    return [new AICrewmate(2, 4, 0), new AICrewmate(0, 0, 3)];
   }
 
   private syncHud(): void {
