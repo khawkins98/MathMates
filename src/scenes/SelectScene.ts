@@ -21,6 +21,7 @@ export class SelectScene implements Scene {
   private progress: ProgressData = getProgress();
   private selectedStageIndex = 0;
   private selectedModeIndex = 0;
+  private elapsed = 0;
 
   constructor(manager: SceneManager, rr: RoughRenderer) {
     this.manager = manager;
@@ -58,7 +59,8 @@ export class SelectScene implements Scene {
       : isImpostorStageUnlocked(stage.id, this.progress);
   }
 
-  update(_dt: number): void {
+  update(dt: number): void {
+    this.elapsed += dt;
     let action = this.manager.input.shift();
     while (action) {
       switch (action) {
@@ -127,12 +129,11 @@ export class SelectScene implements Scene {
       this.drawTile(ctx, stageIndex, 'crew', this.tileX('crew'), y, stage);
       this.drawTile(ctx, stageIndex, 'impostor', this.tileX('impostor'), y, stage);
     }
-
     ctx.save();
     ctx.fillStyle = '#cfd9ed';
     ctx.font = `14px 'Nunito', sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('Arrows: move  •  Space: start  •  Esc/Backspace: title', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
+    ctx.fillText('Arrows: move  •  Space/Enter: start  •  Esc/Backspace: title', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
     ctx.restore();
   }
 
@@ -187,9 +188,13 @@ export class SelectScene implements Scene {
     ctx.fillText(unlocked ? missionLabel : `🔒 ${lockedLabel}`, x + 42, y + 49);
 
     if (selected) {
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText('▶', x + TILE_WIDTH - 12, y + TILE_HEIGHT / 2 + 1);
+      const pulse = 0.55 + 0.45 * Math.sin(this.elapsed * 0.006);
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.globalAlpha = pulse;
+      ctx.strokeRect(x + 3, y + 3, TILE_WIDTH - 6, TILE_HEIGHT - 6);
+      ctx.restore();
     }
     ctx.restore();
   }

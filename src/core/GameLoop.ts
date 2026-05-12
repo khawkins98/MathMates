@@ -20,7 +20,11 @@ export class GameLoop {
     }
     const dt = Math.min(now - this.lastTime, this.MAX_DT);
     this.lastTime = now;
-    this.onTick(dt);
+    try {
+      this.onTick(dt);
+    } catch (err) {
+      console.error('[GameLoop] Unhandled error in game tick:', err);
+    }
     requestAnimationFrame((t) => this.tick(t));
   }
 

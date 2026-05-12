@@ -121,7 +121,7 @@ export class BriefingScene implements Scene {
 
     ctx.font = `14px 'Nunito', sans-serif`;
     ctx.fillStyle = '#cbd6eb';
-    ctx.fillText('Space starts early • Backspace returns to stage select', CANVAS_WIDTH / 2, 320);
+    ctx.fillText('Space/Enter starts early • Backspace returns to stage select', CANVAS_WIDTH / 2, 320);
 
     const seconds = Math.max(0, Math.ceil(this.countdownMs / 1000));
     ctx.strokeStyle = accent;

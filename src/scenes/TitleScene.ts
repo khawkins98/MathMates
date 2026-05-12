@@ -71,7 +71,7 @@ export class TitleScene implements Scene {
     ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(this.elapsed * 0.003));
     ctx.fillStyle = '#ffffff';
     ctx.font = `32px 'Caveat', cursive`;
-    ctx.fillText('Press SPACE to start', CANVAS_WIDTH / 2, 300);
+    ctx.fillText('Press SPACE or ENTER to start', CANVAS_WIDTH / 2, 300);
     ctx.globalAlpha = 1;
 
     ctx.font = `18px 'Nunito', sans-serif`;

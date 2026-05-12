@@ -35,11 +35,6 @@ function applyScale(): void {
 window.addEventListener('resize', applyScale);
 applyScale();
 
-// Ensure keyboard events reach the window listener
-canvas.tabIndex = 0;
-canvas.focus();
-document.addEventListener('pointerdown', () => canvas.focus(), { passive: true });
-
 const ctx = canvas.getContext('2d');
 if (!ctx) {
   throw new Error('Canvas 2D context not available');
