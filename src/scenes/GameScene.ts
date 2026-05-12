@@ -222,6 +222,10 @@ export class GameScene implements Scene {
     if (!cell || cell.state === 'consumed' || cell.state === 'broken' || cell.state === 'correct_flash' || cell.state === 'error_flash') {
       return;
     }
+    if (cell.sus) {
+      this.statusText = 'Cell is marked sus — press S to unmark before eating.';
+      return;
+    }
 
     if (this.mission.mode === 'crew') {
       const correct = this.grid.consumeCell(this.player.col, this.player.row);
