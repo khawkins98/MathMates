@@ -47,31 +47,60 @@ export class RoughRenderer {
 
   crewmate(cx: number, cy: number, colour: string, seed = 1, scale = 1): void {
     const s = scale;
-    this.rc.rectangle(cx - 12 * s, cy - 16 * s, 24 * s, 28 * s, {
-      ...ROUGH_OPTIONS,
+    const OUTLINE = '#080c0c';
+
+    // Body
+    this.rc.rectangle(cx - 13 * s, cy - 14 * s, 22 * s, 28 * s, {
       fill: colour,
       fillStyle: 'solid',
-      stroke: colour,
+      stroke: OUTLINE,
+      strokeWidth: 3 * s,
+      roughness: 0.4,
       seed,
     });
-    this.rc.ellipse(cx, cy - 10 * s, 18 * s, 12 * s, {
-      ...ROUGH_OPTIONS,
+
+    // Backpack bump on right side
+    this.rc.rectangle(cx + 7 * s, cy - 4 * s, 7 * s, 12 * s, {
+      fill: colour,
+      fillStyle: 'solid',
+      stroke: OUTLINE,
+      strokeWidth: 2 * s,
+      roughness: 0.4,
+      seed: seed + 10,
+    });
+
+    // Visor
+    this.rc.ellipse(cx - 2 * s, cy - 7 * s, 18 * s, 11 * s, {
       fill: '#7ee8fa',
       fillStyle: 'solid',
-      stroke: '#aaeeff',
+      stroke: OUTLINE,
+      strokeWidth: 2 * s,
+      roughness: 0.3,
       seed: seed + 1,
     });
-    this.rc.line(cx - 6 * s, cy + 12 * s, cx - 8 * s, cy + 24 * s, {
-      stroke: colour,
-      strokeWidth: 3 * s,
-      roughness: 1.2,
-      seed: seed + 2,
+
+    // Visor highlight (plain canvas — crisp)
+    this.ctx.save();
+    this.ctx.fillStyle = '#d0f8ff';
+    this.ctx.globalAlpha = 0.85;
+    this.ctx.beginPath();
+    this.ctx.arc(cx - 6 * s, cy - 9 * s, 2.5 * s, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.restore();
+
+    // Legs: draw outline line then colour line on top
+    const legOpts = { roughness: 0.6 };
+    this.rc.line(cx - 7 * s, cy + 14 * s, cx - 9 * s, cy + 24 * s, {
+      ...legOpts, seed: seed + 2, stroke: OUTLINE, strokeWidth: 5 * s,
     });
-    this.rc.line(cx + 6 * s, cy + 12 * s, cx + 8 * s, cy + 24 * s, {
-      stroke: colour,
-      strokeWidth: 3 * s,
-      roughness: 1.2,
-      seed: seed + 3,
+    this.rc.line(cx + 7 * s, cy + 14 * s, cx + 9 * s, cy + 24 * s, {
+      ...legOpts, seed: seed + 3, stroke: OUTLINE, strokeWidth: 5 * s,
+    });
+    this.rc.line(cx - 7 * s, cy + 14 * s, cx - 9 * s, cy + 24 * s, {
+      ...legOpts, seed: seed + 2, stroke: colour, strokeWidth: 3 * s,
+    });
+    this.rc.line(cx + 7 * s, cy + 14 * s, cx + 9 * s, cy + 24 * s, {
+      ...legOpts, seed: seed + 3, stroke: colour, strokeWidth: 3 * s,
     });
   }
 

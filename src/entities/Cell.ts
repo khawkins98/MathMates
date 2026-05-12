@@ -82,12 +82,12 @@ export class Cell {
       const ctx = rr.context;
       ctx.save();
       ctx.strokeStyle = COLOURS.CELL_SUS_MARKER;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(x + w - 16, y + 8);
-      ctx.lineTo(x + w - 8, y + 16);
-      ctx.moveTo(x + w - 8, y + 8);
-      ctx.lineTo(x + w - 16, y + 16);
+      ctx.moveTo(x + w - 20, y + 6);
+      ctx.lineTo(x + w - 6, y + 20);
+      ctx.moveTo(x + w - 6, y + 6);
+      ctx.lineTo(x + w - 20, y + 20);
       ctx.stroke();
       ctx.restore();
     }
@@ -97,7 +97,7 @@ export class Cell {
       ctx.save();
       ctx.globalAlpha = this._state === 'broken' ? 0.55 : 1;
       ctx.fillStyle = COLOURS.TEXT_CELL;
-      ctx.font = `bold 16px 'Nunito', sans-serif`;
+      ctx.font = `18px 'Fredoka One', sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(this.value.display, x + w / 2, y + h / 2 + 1);

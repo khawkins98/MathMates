@@ -15,7 +15,6 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
-// Scale canvas CSS size to fill viewport, maintaining aspect ratio
 function applyScale(): void {
   const aspect = CANVAS_WIDTH / CANVAS_HEIGHT;
   const winW = window.innerWidth;
@@ -40,22 +39,31 @@ if (!ctx) {
   throw new Error('Canvas 2D context not available');
 }
 
-const manager = new SceneManager(canvas, ctx);
-const rr = new RoughRenderer(ctx);
-const audio = new AudioManager();
+async function startGame(): Promise<void> {
+  await Promise.all([
+    document.fonts.load("16px 'Fredoka One'"),
+    document.fonts.load("16px 'Press Start 2P'"),
+  ]).catch(() => { /* fonts may not be available offline — continue anyway */ });
 
-manager.register('TITLE', new TitleScene(manager, rr));
-manager.register('SELECT', new SelectScene(manager, rr));
-manager.register('BRIEFING', new BriefingScene(manager, rr));
-manager.register('GAME', new GameScene(manager, rr, audio));
-manager.register('COMPLETE', new CompleteScene(manager, rr));
-manager.register('GAME_OVER', new GameOverScene(manager, rr));
+  const manager = new SceneManager(canvas, ctx!);
+  const rr = new RoughRenderer(ctx!);
+  const audio = new AudioManager();
 
-manager.goto('TITLE');
+  manager.register('TITLE', new TitleScene(manager, rr));
+  manager.register('SELECT', new SelectScene(manager, rr));
+  manager.register('BRIEFING', new BriefingScene(manager, rr));
+  manager.register('GAME', new GameScene(manager, rr, audio));
+  manager.register('COMPLETE', new CompleteScene(manager, rr));
+  manager.register('GAME_OVER', new GameOverScene(manager, rr));
 
-const loop = new GameLoop((dt) => {
-  manager.update(dt);
-  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  manager.draw();
-});
-loop.start();
+  manager.goto('TITLE');
+
+  const loop = new GameLoop((dt) => {
+    manager.update(dt);
+    ctx!.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    manager.draw();
+  });
+  loop.start();
+}
+
+startGame();

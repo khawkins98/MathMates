@@ -45,56 +45,75 @@ export class HUD {
     this.elapsed += dt;
   }
 
-  draw(ctx: CanvasRenderingContext2D, _rr: RoughRenderer): void {
+  draw(ctx: CanvasRenderingContext2D, rr: RoughRenderer): void {
     const hudHeight = GRID_OFFSET_Y - 4;
     ctx.save();
-    ctx.fillStyle = '#0d1b2a';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, hudHeight);
 
-    ctx.fillStyle = COLOURS.TEXT_HUD;
-    ctx.font = `bold 14px 'Caveat', cursive`;
+    // HUD background panel
+    ctx.fillStyle = '#0d1a1a';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, hudHeight);
+    ctx.strokeStyle = '#2a4040';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, hudHeight);
+    ctx.lineTo(CANVAS_WIDTH, hudHeight);
+    ctx.stroke();
+
+    // Mode + rule text
+    const modeLabel = this.impostorMode ? '👾 IMPOSTOR' : '🚀 CREW';
+    ctx.fillStyle = this.impostorMode ? COLOURS.DANGER : COLOURS.PLAYER_CREW;
+    ctx.font = "13px 'Fredoka One', sans-serif";
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    const modeLabel = this.impostorMode ? '👾 IMPOSTOR' : '🚀 CREW';
-    ctx.fillText(`${modeLabel} — ${this.ruleText}`, 10, hudHeight / 2 - 10);
+    ctx.fillText(modeLabel, 10, 16);
+    ctx.fillStyle = COLOURS.TEXT_HUD;
+    ctx.fillText(` — ${this.ruleText}`, 10 + ctx.measureText(modeLabel).width, 16);
 
+    // Score (right side)
     ctx.textAlign = 'right';
-    ctx.font = `bold 20px 'Caveat', cursive`;
+    ctx.font = "16px 'Press Start 2P', monospace";
     ctx.fillStyle = COLOURS.GOLD;
-    ctx.fillText(`${this.score}`, CANVAS_WIDTH - 10, hudHeight / 2 - 10);
+    ctx.fillText(`${this.score}`, CANVAS_WIDTH - 10, 16);
     if (this.multiplier > 1) {
-      ctx.font = `14px 'Caveat', cursive`;
+      ctx.font = "10px 'Press Start 2P', monospace";
       ctx.fillStyle = COLOURS.AI_CREW_1;
-      ctx.fillText(`×${this.multiplier.toFixed(this.multiplier % 1 === 0 ? 0 : 1)}`, CANVAS_WIDTH - 10, hudHeight / 2 + 10);
+      ctx.fillText(`x${this.multiplier.toFixed(this.multiplier % 1 === 0 ? 0 : 1)}`, CANVAS_WIDTH - 10, 34);
     }
 
-    const barWidth = 180;
-    const barHeight = 10;
+    // Progress bar (centre)
+    const barWidth = 160;
+    const barHeight = 8;
     const barX = (CANVAS_WIDTH - barWidth) / 2;
-    const barY = hudHeight / 2 + 8;
-    ctx.fillStyle = '#1a2a3a';
+    const barY = 8;
+    ctx.fillStyle = '#1a3030';
     ctx.fillRect(barX, barY, barWidth, barHeight);
     const fill = this.progressTotal > 0 ? this.progressCurrent / this.progressTotal : 0;
     ctx.fillStyle = this.progressColour;
     ctx.fillRect(barX, barY, barWidth * fill, barHeight);
-    ctx.strokeStyle = '#445';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#2a5050';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(barX, barY, barWidth, barHeight);
+    ctx.font = "10px 'Fredoka One', sans-serif";
     ctx.fillStyle = COLOURS.TEXT_HUD;
-    ctx.font = `12px 'Nunito', sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(`${this.progressCurrent}/${this.progressTotal}`, CANVAS_WIDTH / 2, barY - 6);
+    ctx.fillText(`${this.progressCurrent}/${this.progressTotal}`, CANVAS_WIDTH / 2, barY + barHeight + 10);
 
+    // Lives — small crewmate icons
+    const lifeScale = 0.42;
+    const lifeSpacing = 22;
+    const lifeStartX = 14;
+    const lifeCY = 52;
     for (let i = 0; i < this.maxLives; i += 1) {
-      const cx = 10 + i * 22;
-      const cy = hudHeight / 2 + 12;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
-      ctx.fillStyle = i < this.lives ? COLOURS.PLAYER_CREW : '#1a2a3a';
-      ctx.fill();
-      ctx.strokeStyle = i < this.lives ? '#aaa' : '#334';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      const cx = lifeStartX + i * lifeSpacing;
+      if (i < this.lives) {
+        rr.crewmate(cx, lifeCY, COLOURS.PLAYER_CREW, i + 1, lifeScale);
+      } else {
+        // Lost life: dim silhouette
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        rr.crewmate(cx, lifeCY, '#4a6060', i + 1, lifeScale);
+        ctx.restore();
+      }
     }
 
     ctx.restore();

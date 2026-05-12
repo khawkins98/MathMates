@@ -8,6 +8,7 @@ import { Grid } from '@/entities/Grid';
 import { Player } from '@/entities/Player';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
+import { drawSpaceBackground, makeStars } from '@/rendering/drawHelpers';
 import { SCENARIO_REGISTRY } from '@/scenarios';
 import { STAGES } from '@/stages';
 import type { Scene, ScenarioDefinition, StageDefinition } from '@/types';
@@ -43,6 +44,7 @@ export class GameScene implements Scene {
   private rr: RoughRenderer;
   private audio: AudioManager;
   private hud = new HUD();
+  private stars = makeStars(40);
   private stage: StageDefinition | null = null;
   private scenario: ScenarioDefinition | null = null;
   private mission: MissionParams | null = null;
@@ -466,13 +468,7 @@ export class GameScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = COLOURS.BG;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    for (let i = 0; i < 45; i += 1) {
-      ctx.fillStyle = i % 3 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.25)';
-      ctx.fillRect((i * 61) % CANVAS_WIDTH, (i * 97) % CANVAS_HEIGHT, 1 + (i % 2), 1 + (i % 2));
-    }
+    drawSpaceBackground(ctx, this.elapsedMs, this.stars);
 
     ctx.fillStyle = COLOURS.GRID_BG;
     ctx.fillRect(
@@ -501,11 +497,11 @@ export class GameScene implements Scene {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#dde7f6';
-    ctx.font = `14px 'Nunito', sans-serif`;
+    ctx.font = "14px 'Fredoka One', sans-serif";
     ctx.fillText(this.statusText, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
     if (this.scenario) {
       ctx.textAlign = 'left';
-      ctx.fillStyle = '#c4d1ee';
+      ctx.fillStyle = '#7aa8a8';
       ctx.fillText(`${this.stage?.title ?? ''} • ${this.scenario.title}`, 12, CANVAS_HEIGHT - 18);
     }
     ctx.restore();
@@ -518,11 +514,17 @@ export class GameScene implements Scene {
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `bold 42px 'Caveat', cursive`;
-      ctx.fillText('Paused', CANVAS_WIDTH / 2, 178);
-      ctx.font = `18px 'Nunito', sans-serif`;
-      ctx.fillText('Press Space or Esc to resume', CANVAS_WIDTH / 2, 220);
-      ctx.fillText('Backspace returns to stage select', CANVAS_WIDTH / 2, 250);
+      ctx.font = "24px 'Press Start 2P', monospace";
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#080c0c';
+      ctx.lineWidth = 5;
+      ctx.strokeText('PAUSED', CANVAS_WIDTH / 2, 178);
+      ctx.fillStyle = '#f0fafa';
+      ctx.fillText('PAUSED', CANVAS_WIDTH / 2, 178);
+      ctx.font = "15px 'Fredoka One', sans-serif";
+      ctx.fillStyle = '#c8e8e0';
+      ctx.fillText('Space or Esc to resume', CANVAS_WIDTH / 2, 220);
+      ctx.fillText('Backspace returns to stage select', CANVAS_WIDTH / 2, 248);
       ctx.restore();
     }
   }

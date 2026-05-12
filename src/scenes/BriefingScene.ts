@@ -1,8 +1,9 @@
 import type { Scene } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+import { CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
+import { drawSpaceBackground, drawOutlinedText, drawPanel, makeStars, type Star } from '@/rendering/drawHelpers';
 import { SCENARIO_REGISTRY } from '@/scenarios';
 import { STAGES } from '@/stages';
 import type { GameMode, ScenarioDefinition } from '@/types';
@@ -21,15 +22,14 @@ function isMissionParams(value: unknown): value is MissionParams {
 
 export class BriefingScene implements Scene {
   private manager: SceneManager;
-  private rr: RoughRenderer;
   private mission: MissionParams | null = null;
   private scenario: ScenarioDefinition | null = null;
   private countdownMs = 3000;
   private started = false;
+  private stars: Star[] = makeStars(50);
 
-  constructor(manager: SceneManager, rr: RoughRenderer) {
+  constructor(manager: SceneManager, _rr: RoughRenderer) {
     this.manager = manager;
-    this.rr = rr;
   }
 
   enter(params?: Record<string, unknown>): void {
@@ -91,47 +91,55 @@ export class BriefingScene implements Scene {
     const stage = mission ? STAGES[mission.stageIndex] : null;
     const mode: GameMode = mission?.mode ?? 'crew';
     const accent = mode === 'crew' ? COLOURS.SUCCESS : COLOURS.DANGER;
-    const panelFill = mode === 'crew' ? '#133148' : '#431726';
+    const panelFill = mode === 'crew' ? '#1a3840' : '#3a1828';
 
-    ctx.fillStyle = COLOURS.BG;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    this.rr.cell(38, 52, 524, 296, panelFill, accent, 91);
+    drawSpaceBackground(ctx, 3000 - this.countdownMs, this.stars);
+    drawPanel(ctx, 38, 44, 524, 310, panelFill, accent, 3);
 
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+
+    // Mode badge
+    ctx.font = "13px 'Fredoka One', sans-serif";
     ctx.fillStyle = accent;
-    ctx.font = `bold 20px 'Nunito', sans-serif`;
-    ctx.fillText(mode === 'crew' ? '🚀 Crew briefing' : '👾 Impostor briefing', CANVAS_WIDTH / 2, 86);
+    ctx.fillText(mode === 'crew' ? '🚀 Crew briefing' : '👾 Impostor briefing', CANVAS_WIDTH / 2, 76);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 38px 'Caveat', cursive`;
-    ctx.fillText(stage ? `${stage.icon} ${stage.title}` : 'Mission', CANVAS_WIDTH / 2, 128);
+    // Stage title
+    drawOutlinedText(ctx, stage ? `${stage.icon} ${stage.title}` : 'Mission', CANVAS_WIDTH / 2, 118, 24, '#f0fafa', '#080c0c', 5, "'Fredoka One', sans-serif");
 
-    ctx.font = `bold 26px 'Nunito', sans-serif`;
-    ctx.fillText(scenario?.title ?? '', CANVAS_WIDTH / 2, 168);
+    // Scenario title
+    ctx.font = "20px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(scenario?.title ?? '', CANVAS_WIDTH / 2, 155);
 
-    ctx.fillStyle = '#dbe6ff';
-    ctx.font = `bold 18px 'Nunito', sans-serif`;
-    ctx.fillText(scenario?.ruleText ?? '', CANVAS_WIDTH / 2, 208);
+    // Rule text
+    ctx.font = "17px 'Fredoka One', sans-serif";
+    ctx.fillStyle = accent;
+    ctx.fillText(scenario?.ruleText ?? '', CANVAS_WIDTH / 2, 188);
 
-    ctx.font = `18px 'Nunito', sans-serif`;
-    const briefing = scenario?.briefingText ?? '';
-    this.drawWrappedText(ctx, briefing, CANVAS_WIDTH / 2, 258, 420, 28);
+    // Briefing text (wrapped)
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#c8e0e0';
+    this.drawWrappedText(ctx, scenario?.briefingText ?? '', CANVAS_WIDTH / 2, 232, 440, 26);
 
-    ctx.font = `14px 'Nunito', sans-serif`;
-    ctx.fillStyle = '#cbd6eb';
-    ctx.fillText('Space/Enter starts early • Backspace returns to stage select', CANVAS_WIDTH / 2, 320);
+    // Hint
+    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#7aa8a8';
+    ctx.fillText('Space/Enter starts early  •  Backspace returns to stage select', CANVAS_WIDTH / 2, 322);
 
+    // Countdown arc
     const seconds = Math.max(0, Math.ceil(this.countdownMs / 1000));
     ctx.strokeStyle = accent;
     ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(CANVAS_WIDTH / 2, 370, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.countdownMs / 3000));
+    ctx.arc(CANVAS_WIDTH / 2, 373, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.countdownMs / 3000));
     ctx.stroke();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 24px 'Nunito', sans-serif`;
-    ctx.fillText(`${seconds}`, CANVAS_WIDTH / 2, 370);
+    ctx.font = "18px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(`${seconds}`, CANVAS_WIDTH / 2, 374);
+
     ctx.restore();
   }
 

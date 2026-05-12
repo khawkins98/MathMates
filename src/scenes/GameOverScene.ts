@@ -1,7 +1,8 @@
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+import { CANVAS_WIDTH } from '@/constants';
 import type { SceneManager } from '@/core/SceneManager';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
+import { drawSpaceBackground, drawButton, makeStars, type Star } from '@/rendering/drawHelpers';
 import type { Scene } from '@/types';
 import type { GameOverSceneParams } from './sceneParams';
 
@@ -17,13 +18,13 @@ function isGameOverParams(value: unknown): value is GameOverSceneParams {
 
 export class GameOverScene implements Scene {
   private manager: SceneManager;
-  private rr: RoughRenderer;
   private result: GameOverSceneParams | null = null;
   private selectedButton = 0;
+  private stars: Star[] = makeStars(50);
+  private elapsed = 0;
 
-  constructor(manager: SceneManager, rr: RoughRenderer) {
+  constructor(manager: SceneManager, _rr: RoughRenderer) {
     this.manager = manager;
-    this.rr = rr;
   }
 
   enter(params?: Record<string, unknown>): void {
@@ -37,7 +38,8 @@ export class GameOverScene implements Scene {
 
   exit(): void {}
 
-  update(_dt: number): void {
+  update(dt: number): void {
+    this.elapsed += dt;
     let action = this.manager.input.shift();
     while (action) {
       switch (action) {
@@ -69,51 +71,48 @@ export class GameOverScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = COLOURS.BG;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    this.rr.cell(70, 64, 460, 246, '#421826', COLOURS.DANGER, 401);
+    drawSpaceBackground(ctx, this.elapsed, this.stars);
+
+    // Panel
+    const panelX = 70, panelY = 56, panelW = 460, panelH = 258;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(panelX + 4, panelY + 5, panelW, panelH);
+    ctx.fillStyle = '#3a1020';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = COLOURS.DANGER;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+    ctx.restore();
 
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 54px 'Caveat', cursive`;
-    ctx.fillText('Mission Failed', CANVAS_WIDTH / 2, 106);
 
-    ctx.font = `bold 22px 'Nunito', sans-serif`;
-    ctx.fillText(`${this.result?.stageTitle ?? ''} • ${this.result?.scenarioTitle ?? ''}`, CANVAS_WIDTH / 2, 154);
+    // Title
+    ctx.font = "28px 'Press Start 2P', monospace";
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#080c0c';
+    ctx.lineWidth = 6;
+    ctx.strokeText('Mission Failed', CANVAS_WIDTH / 2, 100);
+    ctx.fillStyle = COLOURS.DANGER;
+    ctx.fillText('Mission Failed', CANVAS_WIDTH / 2, 100);
 
-    ctx.font = `18px 'Nunito', sans-serif`;
-    ctx.fillStyle = '#ffd7df';
-    ctx.fillText(`Final score ${this.result?.score ?? 0}`, CANVAS_WIDTH / 2, 196);
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(`${this.result?.stageTitle ?? ''}  •  ${this.result?.scenarioTitle ?? ''}`, CANVAS_WIDTH / 2, 148);
+
+    ctx.font = "15px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#ffd0d8';
+    ctx.fillText(`Final score ${this.result?.score ?? 0}`, CANVAS_WIDTH / 2, 186);
     ctx.fillText(
       this.result?.mode === 'impostor' ? 'Too many correct answers were eaten.' : 'The impostor wore you out.',
-      CANVAS_WIDTH / 2,
-      226,
+      CANVAS_WIDTH / 2, 214,
     );
-    ctx.fillText('Try again, or head back to the stage map.', CANVAS_WIDTH / 2, 254);
+    ctx.fillText('Try again, or head back to the stage map.', CANVAS_WIDTH / 2, 242);
     ctx.restore();
 
-    this.drawButton(ctx, 126, 338, 150, 48, 'Try Again', this.selectedButton === 0);
-    this.drawButton(ctx, 324, 338, 150, 48, 'Select Stage', this.selectedButton === 1);
-  }
-
-  private drawButton(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    label: string,
-    selected: boolean,
-  ): void {
-    this.rr.cell(x, y, width, height, '#1a2e48', selected ? '#ffffff' : '#9db4d6', x + y + 20);
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `bold 18px 'Nunito', sans-serif`;
-    ctx.fillText(label, x + width / 2, y + height / 2);
-    ctx.restore();
+    drawButton(ctx, 126, 338, 150, 48, 'Try Again', this.selectedButton === 0, this.elapsed);
+    drawButton(ctx, 324, 338, 150, 48, 'Select Stage', this.selectedButton === 1, this.elapsed);
   }
 }

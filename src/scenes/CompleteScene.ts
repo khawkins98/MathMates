@@ -1,7 +1,8 @@
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+import { CANVAS_WIDTH } from '@/constants';
 import type { SceneManager } from '@/core/SceneManager';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
+import { drawSpaceBackground, drawButton, makeStars, type Star } from '@/rendering/drawHelpers';
 import type { Scene } from '@/types';
 import type { CompleteSceneParams } from './sceneParams';
 
@@ -17,13 +18,13 @@ function isCompleteParams(value: unknown): value is CompleteSceneParams {
 
 export class CompleteScene implements Scene {
   private manager: SceneManager;
-  private rr: RoughRenderer;
   private result: CompleteSceneParams | null = null;
   private selectedButton = 0;
+  private stars: Star[] = makeStars(50);
+  private elapsed = 0;
 
-  constructor(manager: SceneManager, rr: RoughRenderer) {
+  constructor(manager: SceneManager, _rr: RoughRenderer) {
     this.manager = manager;
-    this.rr = rr;
   }
 
   enter(params?: Record<string, unknown>): void {
@@ -37,7 +38,8 @@ export class CompleteScene implements Scene {
 
   exit(): void {}
 
-  update(_dt: number): void {
+  update(dt: number): void {
+    this.elapsed += dt;
     let action = this.manager.input.shift();
     while (action) {
       switch (action) {
@@ -71,69 +73,68 @@ export class CompleteScene implements Scene {
   draw(ctx: CanvasRenderingContext2D): void {
     const result = this.result;
     const accent = result?.mode === 'impostor' ? COLOURS.DANGER : COLOURS.SUCCESS;
-    const panelFill = result?.mode === 'impostor' ? '#421826' : '#14344b';
+    const panelFill = result?.mode === 'impostor' ? '#3a1020' : '#1a3828';
 
-    ctx.fillStyle = COLOURS.BG;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    this.rr.cell(58, 42, 484, 290, panelFill, accent, 311);
+    drawSpaceBackground(ctx, this.elapsed, this.stars);
+
+    const panelX = 58, panelY = 36, panelW = 484, panelH = 298;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(panelX + 4, panelY + 5, panelW, panelH);
+    ctx.fillStyle = panelFill;
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+    ctx.restore();
 
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 54px 'Caveat', cursive`;
-    ctx.fillText('Mission Complete!', CANVAS_WIDTH / 2, 86);
 
-    ctx.font = `bold 22px 'Nunito', sans-serif`;
-    ctx.fillText(`${result?.stageTitle ?? ''} • ${result?.scenarioTitle ?? ''}`, CANVAS_WIDTH / 2, 130);
+    ctx.font = "24px 'Press Start 2P', monospace";
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#080c0c';
+    ctx.lineWidth = 6;
+    ctx.strokeText('Mission', CANVAS_WIDTH / 2, 76);
+    ctx.strokeText('Complete!', CANVAS_WIDTH / 2, 108);
+    ctx.fillStyle = accent;
+    ctx.fillText('Mission', CANVAS_WIDTH / 2, 76);
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText('Complete!', CANVAS_WIDTH / 2, 108);
 
-    ctx.font = `18px 'Nunito', sans-serif`;
-    ctx.fillStyle = '#d9e5ff';
-    ctx.fillText(`Score ${result?.score ?? 0}`, CANVAS_WIDTH / 2, 170);
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(`${result?.stageTitle ?? ''}  •  ${result?.scenarioTitle ?? ''}`, CANVAS_WIDTH / 2, 140);
+
+    ctx.font = "15px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#c8e8e0';
+    ctx.fillText(`Score ${result?.score ?? 0}`, CANVAS_WIDTH / 2, 172);
     ctx.fillText(`Accuracy ${Math.round((result?.accuracy ?? 0) * 100)}%`, CANVAS_WIDTH / 2, 198);
-    ctx.fillText(`Time ${(result ? result.timeMs / 1000 : 0).toFixed(1)}s`, CANVAS_WIDTH / 2, 226);
-    ctx.fillText(`Lives left ${result?.lives ?? 0}`, CANVAS_WIDTH / 2, 254);
+    ctx.fillText(`Time ${(result ? result.timeMs / 1000 : 0).toFixed(1)}s`, CANVAS_WIDTH / 2, 224);
+    ctx.fillText(`Lives left ${result?.lives ?? 0}`, CANVAS_WIDTH / 2, 250);
     if (result?.bonusAwarded) {
       ctx.fillStyle = COLOURS.GOLD;
-      ctx.fillText('⭐ Par time bonus +50!', CANVAS_WIDTH / 2, 282);
+      ctx.fillText('⭐ Par time bonus +50!', CANVAS_WIDTH / 2, 276);
     }
     if (result?.impostorUnlockedNow) {
       ctx.fillStyle = '#ffd6d6';
-      ctx.fillText('Impostor mode unlocked for this stage!', CANVAS_WIDTH / 2, 308);
+      ctx.fillText('Impostor mode unlocked!', CANVAS_WIDTH / 2, 300);
     } else if (result?.nextCrewStageUnlocked) {
       ctx.fillStyle = '#d6f9d6';
-      ctx.fillText('A new crew stage is now unlocked!', CANVAS_WIDTH / 2, 308);
+      ctx.fillText('A new crew stage is now unlocked!', CANVAS_WIDTH / 2, 300);
     }
     ctx.restore();
 
-    this.drawButton(ctx, 118, 352, 170, 48, 'Next Mission', this.selectedButton === 0, Boolean(result?.nextMission));
-    this.drawButton(ctx, 312, 352, 170, 48, 'Back to Select', this.selectedButton === 1, true);
-  }
-
-  private drawButton(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    label: string,
-    selected: boolean,
-    enabled: boolean,
-  ): void {
-    this.rr.cell(x, y, width, height, enabled ? '#1a2e48' : '#253040', selected ? '#ffffff' : '#9db4d6', x + y);
-    if (!enabled) {
+    const nextEnabled = Boolean(result?.nextMission);
+    if (!nextEnabled) {
       ctx.save();
-      ctx.globalAlpha = 0.45;
-      ctx.fillStyle = '#0b1020';
-      ctx.fillRect(x, y, width, height);
+      ctx.globalAlpha = 0.4;
+      drawButton(ctx, 118, 352, 170, 48, 'Next Mission', this.selectedButton === 0, this.elapsed);
       ctx.restore();
+    } else {
+      drawButton(ctx, 118, 352, 170, 48, 'Next Mission', this.selectedButton === 0, this.elapsed);
     }
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `bold 18px 'Nunito', sans-serif`;
-    ctx.fillText(label, x + width / 2, y + height / 2);
-    ctx.restore();
+    drawButton(ctx, 312, 352, 170, 48, 'Back to Select', this.selectedButton === 1, this.elapsed);
   }
 }

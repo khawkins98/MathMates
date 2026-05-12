@@ -4,6 +4,7 @@ import { getModeProgress, getNextScenarioIndex, getProgress, isCrewStageUnlocked
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
+import { drawSpaceBackground, makeStars, type Star } from '@/rendering/drawHelpers';
 import { STAGES } from '@/stages';
 import type { GameMode } from '@/types';
 import type { MissionParams } from './sceneParams';
@@ -17,15 +18,15 @@ const ROW_GAP = 68;
 
 export class SelectScene implements Scene {
   private manager: SceneManager;
-  private rr: RoughRenderer;
   private progress: ProgressData = getProgress();
   private selectedStageIndex = 0;
   private selectedModeIndex = 0;
   private elapsed = 0;
+  private stars: Star[] = makeStars(48);
 
-  constructor(manager: SceneManager, rr: RoughRenderer) {
+  constructor(manager: SceneManager, _rr: RoughRenderer) {
     this.manager = manager;
-    this.rr = rr;
+    this.stars = makeStars(48);
   }
 
   enter(_params?: Record<string, unknown>): void {
@@ -109,18 +110,27 @@ export class SelectScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = COLOURS.BG;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    drawSpaceBackground(ctx, this.elapsed, this.stars);
 
+    // Heading
     ctx.save();
-    ctx.fillStyle = '#fff';
+    ctx.font = "16px 'Press Start 2P', monospace";
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#080c0c';
+    ctx.lineWidth = 5;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `bold 42px 'Caveat', cursive`;
-    ctx.fillText('Choose a mission', CANVAS_WIDTH / 2, 30);
-    ctx.font = `16px 'Nunito', sans-serif`;
-    ctx.fillStyle = '#dbe4ff';
-    ctx.fillText('Each stage has a crew run and an impostor flip-side.', CANVAS_WIDTH / 2, 52);
+    ctx.strokeText('Choose a mission', CANVAS_WIDTH / 2, 28);
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText('Choose a mission', CANVAS_WIDTH / 2, 28);
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = "13px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#7aa8a8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Each stage has a crew run and an impostor flip-side.', CANVAS_WIDTH / 2, 50);
     ctx.restore();
 
     for (let stageIndex = 0; stageIndex < STAGES.length; stageIndex += 1) {
@@ -129,11 +139,13 @@ export class SelectScene implements Scene {
       this.drawTile(ctx, stageIndex, 'crew', this.tileX('crew'), y, stage);
       this.drawTile(ctx, stageIndex, 'impostor', this.tileX('impostor'), y, stage);
     }
+
     ctx.save();
-    ctx.fillStyle = '#cfd9ed';
-    ctx.font = `14px 'Nunito', sans-serif`;
+    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#7aa8a8';
     ctx.textAlign = 'center';
-    ctx.fillText('Arrows: move  •  Space/Enter: start  •  Esc/Backspace: title', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Arrows: move  •  Space/Enter: start  •  Esc/Backspace: title', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 16);
     ctx.restore();
   }
 
@@ -148,35 +160,67 @@ export class SelectScene implements Scene {
     const unlocked = this.isUnlocked(stageIndex, mode);
     const selected = this.selectedStageIndex === stageIndex && (this.selectedModeIndex === 0 ? 'crew' : 'impostor') === mode;
     const accent = mode === 'crew' ? COLOURS.SUCCESS : COLOURS.DANGER;
-    const fill = mode === 'crew' ? '#14344b' : '#4a1825';
     const progress = getModeProgress(stage.id, mode, this.progress);
 
-    this.rr.cell(x, y, TILE_WIDTH, TILE_HEIGHT, fill, selected ? '#f8f9ff' : accent, stageIndex * 11 + (mode === 'crew' ? 2 : 5));
+    // Tile background
+    const tileFill = unlocked ? '#ddf4f0' : '#1e3030';
+    const tileBorder = selected
+      ? accent
+      : unlocked
+        ? '#080c0c'
+        : '#2a4040';
+
+    // Drop shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(x + 3, y + 4, TILE_WIDTH, TILE_HEIGHT);
+
+    ctx.fillStyle = tileFill;
+    ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT);
+
+    // Selected pulse border
+    if (selected) {
+      const pulse = 0.55 + 0.45 * Math.sin(this.elapsed * 0.006);
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 4;
+      ctx.globalAlpha = 0.5 + 0.5 * pulse;
+    } else {
+      ctx.strokeStyle = tileBorder;
+      ctx.lineWidth = 3;
+    }
+    ctx.strokeRect(x, y, TILE_WIDTH, TILE_HEIGHT);
+    ctx.globalAlpha = 1;
 
     if (!unlocked) {
-      ctx.save();
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = '#0a1020';
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
       ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT);
-      ctx.restore();
     }
+    ctx.restore();
 
+    // Text
     ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'left';
+    const textColour = unlocked ? '#080c0c' : '#7aa8a8';
     ctx.textBaseline = 'middle';
-    ctx.font = `22px 'Nunito', sans-serif`;
+
+    // Icon
+    ctx.font = "20px 'Fredoka One', sans-serif";
+    ctx.fillStyle = textColour;
+    ctx.textAlign = 'left';
     ctx.fillText(stage.icon, x + 10, y + 16);
 
-    ctx.font = `bold 16px 'Nunito', sans-serif`;
+    // Title + mode
+    ctx.font = "bold 14px 'Fredoka One', sans-serif";
+    ctx.fillStyle = textColour;
     ctx.fillText(`${stage.title} — ${mode === 'crew' ? 'Crew' : 'Impostor'}`, x + 42, y + 16);
 
-    ctx.font = `12px 'Nunito', sans-serif`;
-    ctx.fillStyle = '#d3dfff';
+    // Description
+    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.fillStyle = unlocked ? '#2a4040' : '#5a7070';
     ctx.fillText(stage.description, x + 42, y + 33);
 
-    ctx.fillStyle = unlocked ? accent : '#f3c9cf';
-    ctx.font = `bold 12px 'Nunito', sans-serif`;
+    // Progress / lock label
+    ctx.fillStyle = unlocked ? accent : '#5a7070';
+    ctx.font = "11px 'Fredoka One', sans-serif";
     const missionLabel = progress.completed
       ? 'Complete ✓'
       : `Mission ${Math.min(progress.completedScenarios + 1, stage.scenarios.length)}/${stage.scenarios.length}`;
@@ -187,15 +231,6 @@ export class SelectScene implements Scene {
       : 'Beat crew mode first';
     ctx.fillText(unlocked ? missionLabel : `🔒 ${lockedLabel}`, x + 42, y + 49);
 
-    if (selected) {
-      const pulse = 0.55 + 0.45 * Math.sin(this.elapsed * 0.006);
-      ctx.save();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 4;
-      ctx.globalAlpha = pulse;
-      ctx.strokeRect(x + 3, y + 3, TILE_WIDTH - 6, TILE_HEIGHT - 6);
-      ctx.restore();
-    }
     ctx.restore();
   }
 }

@@ -13,6 +13,6 @@ export const STARTING_LIVES = 5;
 export const FLASH_DURATION = 350;
 
 export const ROUGH_OPTIONS = {
-  roughness: 1.4,
-  strokeWidth: 2,
+  roughness: 0.8,
+  strokeWidth: 3,
 };
