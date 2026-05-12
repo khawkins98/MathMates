@@ -15,6 +15,31 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
+// Scale canvas CSS size to fill viewport, maintaining aspect ratio
+function applyScale(): void {
+  const aspect = CANVAS_WIDTH / CANVAS_HEIGHT;
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  let cssW: number;
+  let cssH: number;
+  if (winW / winH > aspect) {
+    cssH = winH;
+    cssW = Math.round(winH * aspect);
+  } else {
+    cssW = winW;
+    cssH = Math.round(winW / aspect);
+  }
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+}
+window.addEventListener('resize', applyScale);
+applyScale();
+
+// Ensure keyboard events reach the window listener
+canvas.tabIndex = 0;
+canvas.focus();
+document.addEventListener('pointerdown', () => canvas.focus(), { passive: true });
+
 const ctx = canvas.getContext('2d');
 if (!ctx) {
   throw new Error('Canvas 2D context not available');
