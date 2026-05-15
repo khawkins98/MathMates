@@ -1,27 +1,19 @@
 import type { Scene } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
-import { CANVAS_WIDTH } from '@/constants';
-import { COLOURS } from '@/rendering/colours';
-import { drawSpaceBackground, drawOutlinedText, makeStars, type Star } from '@/rendering/drawHelpers';
-
-const EDGE_CREWMATES: Array<{ cx: number; cy: number; colour: string; seed: number; scale: number }> = [
-  { cx: -8,  cy: 395, colour: COLOURS.AI_CREW_2,       seed: 7,  scale: 1.3 },
-  { cx: 590, cy: 75,  colour: COLOURS.PLAYER_IMPOSTOR,  seed: 3,  scale: 1.1 },
-  { cx: 580, cy: 340, colour: COLOURS.AI_CREW_1,        seed: 11, scale: 1.0 },
-  { cx: 18,  cy: 260, colour: '#8a3cc8',                seed: 15, scale: 0.9 },
-];
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 
 export class TitleScene implements Scene {
   private manager: SceneManager;
-  private rr: RoughRenderer;
   private elapsed = 0;
-  private stars: Star[];
+  private bgImage: HTMLImageElement;
+  private bgReady = false;
 
-  constructor(manager: SceneManager, rr: RoughRenderer) {
+  constructor(manager: SceneManager, _rr: RoughRenderer) {
     this.manager = manager;
-    this.rr = rr;
-    this.stars = makeStars(55);
+    this.bgImage = new Image();
+    this.bgImage.onload = () => { this.bgReady = true; };
+    this.bgImage.src = '/bg-title.jpg';
   }
 
   enter(_params?: Record<string, unknown>): void {
@@ -44,40 +36,114 @@ export class TitleScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    drawSpaceBackground(ctx, this.elapsed, this.stars);
-
-    for (const cm of EDGE_CREWMATES) {
-      const bob = Math.sin(this.elapsed * 0.002 + cm.seed) * 6;
-      const seed = Math.floor(this.elapsed / 450) + cm.seed;
-      this.rr.crewmate(cm.cx, cm.cy + bob, cm.colour, seed, cm.scale);
+    // Background
+    if (this.bgReady) {
+      ctx.drawImage(this.bgImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    } else {
+      ctx.fillStyle = '#060e14';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
-    drawOutlinedText(ctx, 'MathMates', CANVAS_WIDTH / 2, 108, 44, '#f0fafa', '#080c0c', 7);
+    // Dark gradient overlay — heavier at top (title area) and bottom (controls bar)
+    const topGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT * 0.45);
+    topGrad.addColorStop(0, 'rgba(0,6,12,0.72)');
+    topGrad.addColorStop(1, 'rgba(0,6,12,0)');
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT * 0.45);
 
+    const btmGrad = ctx.createLinearGradient(0, CANVAS_HEIGHT * 0.72, 0, CANVAS_HEIGHT);
+    btmGrad.addColorStop(0, 'rgba(0,6,12,0)');
+    btmGrad.addColorStop(1, 'rgba(0,6,12,0.85)');
+    ctx.fillStyle = btmGrad;
+    ctx.fillRect(0, CANVAS_HEIGHT * 0.72, CANVAS_WIDTH, CANVAS_HEIGHT * 0.28);
+
+    // Title: MATHMATES
+    this.drawOutlinedText(ctx, 'MATHMATES', CANVAS_WIDTH / 2, 68, 48, '#ffffff', '#061010', 9);
+
+    // Subtitle
+    this.drawOutlinedText(ctx, 'A MATHS ADVENTURE IN SPACE', CANVAS_WIDTH / 2, 114, 14, '#40d8c0', '#061010', 5);
+
+    // "Press space" prompt — pulsing, with semi-transparent backing panel
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(this.elapsed * 0.0028));
+    const promptY = CANVAS_HEIGHT * 0.56;
     ctx.save();
-    ctx.font = "22px 'Fredoka One', sans-serif";
-    ctx.fillStyle = COLOURS.TEXT_TITLE;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('A maths adventure in space', CANVAS_WIDTH / 2, 158);
+    ctx.globalAlpha = pulse * 0.88;
+    ctx.fillStyle = 'rgba(0,6,12,0.6)';
+    const pW = 380;
+    const pH = 42;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect((CANVAS_WIDTH - pW) / 2, promptY - pH / 2, pW, pH, 8);
+    } else {
+      ctx.rect((CANVAS_WIDTH - pW) / 2, promptY - pH / 2, pW, pH);
+    }
+    ctx.fill();
+    ctx.globalAlpha = pulse;
+    this.drawOutlinedText(ctx, 'PRESS SPACE OR ENTER TO START', CANVAS_WIDTH / 2, promptY, 16, '#f0fafa', '#061010', 5);
     ctx.restore();
 
+    // Bottom controls bar
+    const barH = 36;
+    const barY = CANVAS_HEIGHT - barH - 8;
     ctx.save();
-    ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(this.elapsed * 0.003));
-    ctx.font = "20px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#f0fafa';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Press SPACE or ENTER to start', CANVAS_WIDTH / 2, 250);
-    ctx.globalAlpha = 1;
-    ctx.restore();
+    ctx.fillStyle = 'rgba(0,10,14,0.78)';
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(14, barY, CANVAS_WIDTH - 28, barH, 8);
+    } else {
+      ctx.rect(14, barY, CANVAS_WIDTH - 28, barH);
+    }
+    ctx.fill();
+    ctx.strokeStyle = '#2a5050';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
-    ctx.save();
-    ctx.font = "13px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#7aa8a8';
+    ctx.font = "12px 'Fredoka One', sans-serif";
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Arrow keys  •  Space to eat  •  S to mark sus', CANVAS_WIDTH / 2, 292);
+    const barCy = barY + barH / 2;
+
+    const segments: Array<[string, string]> = [
+      ['ARROW KEYS', 'move'],
+      ['SPACE', 'eat'],
+      ['S', 'mark sus'],
+    ];
+    const segW = (CANVAS_WIDTH - 28) / segments.length;
+    for (let i = 0; i < segments.length; i += 1) {
+      const sx = 14 + segW * i + segW / 2;
+      const [key, desc] = segments[i];
+      const keyW = ctx.measureText(key).width;
+      const gap = 6;
+      const descW = ctx.measureText(desc).width;
+      const totalW = keyW + gap + descW;
+      ctx.fillStyle = '#f0d060';
+      ctx.fillText(key, sx - totalW / 2 + keyW / 2, barCy);
+      ctx.fillStyle = '#40d8c0';
+      ctx.fillText(desc, sx - totalW / 2 + keyW + gap + descW / 2, barCy);
+    }
+    ctx.restore();
+  }
+
+  private drawOutlinedText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    size: number,
+    fill: string,
+    stroke: string,
+    strokeW: number,
+  ): void {
+    ctx.save();
+    ctx.font = `bold ${size}px 'Press Start 2P', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = strokeW;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = fill;
+    ctx.fillText(text, x, y);
     ctx.restore();
   }
 }
