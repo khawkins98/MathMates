@@ -42,11 +42,30 @@ export function drawSpaceBackground(
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 }
 
-function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+/** Adds a rounded-rect path to ctx without stroking or filling. Falls back to plain rect. */
+export function rrect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
   if (typeof ctx.roundRect === 'function') {
+    ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
   } else {
-    ctx.rect(x, y, w, h);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
   }
 }
 
@@ -74,6 +93,50 @@ export function drawOutlinedText(
   ctx.restore();
 }
 
+/**
+ * Draws a bottom-anchored controls hint bar.
+ * segments: array of [keyName, actionDescription] — key rendered in gold, desc in teal.
+ * offsetFromBottom: pixels above the canvas bottom edge (default 8).
+ */
+export function drawControlsHintsBar(
+  ctx: CanvasRenderingContext2D,
+  segments: Array<[string, string]>,
+  offsetFromBottom = 8,
+): void {
+  const barH = 36;
+  const barX = 14;
+  const barY = CANVAS_HEIGHT - barH - offsetFromBottom;
+  const barW = CANVAS_WIDTH - 28;
+
+  ctx.save();
+  rrect(ctx, barX, barY, barW, barH, 8);
+  ctx.fillStyle = 'rgba(0,10,14,0.82)';
+  ctx.fill();
+  ctx.strokeStyle = '#2a5050';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.font = "12px 'Fredoka One', sans-serif";
+  ctx.textBaseline = 'middle';
+  const cy = barY + barH / 2;
+  const segW = barW / segments.length;
+
+  for (let i = 0; i < segments.length; i += 1) {
+    const [key, desc] = segments[i];
+    const sx = barX + segW * i + segW / 2;
+    const keyW = ctx.measureText(key).width;
+    const gap = 6;
+    const descW = ctx.measureText(desc).width;
+    const totalW = keyW + gap + descW;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f0d060'; // gold key names
+    ctx.fillText(key, sx - totalW / 2, cy);
+    ctx.fillStyle = '#40d8c0'; // teal descriptions
+    ctx.fillText(desc, sx - totalW / 2 + keyW + gap, cy);
+  }
+  ctx.restore();
+}
+
 export function drawButton(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -88,39 +151,41 @@ export function drawButton(
 
   // Drop shadow
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath();
-  rr(ctx, x + 3, y + 4, w, h, 8);
+  rrect(ctx, x + 3, y + 4, w, h, 8);
   ctx.fill();
 
   // Fill
-  ctx.fillStyle = selected ? '#ffffff' : '#ddf4f0';
-  ctx.beginPath();
-  rr(ctx, x, y, w, h, 8);
+  ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
+  rrect(ctx, x, y, w, h, 8);
   ctx.fill();
 
   // Border
   if (selected) {
-    const pulse = 0.5 + 0.5 * Math.abs(Math.sin(elapsed * 0.004));
-    ctx.strokeStyle = '#40d8c0';
-    ctx.lineWidth = 4;
-    ctx.globalAlpha = 0.6 + 0.4 * pulse;
-  } else {
-    ctx.strokeStyle = '#080c0c';
+    ctx.save();
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = '#00f0ff';
     ctx.lineWidth = 3;
+    rrect(ctx, x, y, w, h, 8);
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    ctx.strokeStyle = '#8aacac';
+    ctx.lineWidth = 1.5;
+    rrect(ctx, x, y, w, h, 8);
+    ctx.stroke();
   }
-  ctx.beginPath();
-  rr(ctx, x, y, w, h, 8);
-  ctx.stroke();
   ctx.globalAlpha = 1;
 
   // Label
-  ctx.fillStyle = '#080c0c';
-  ctx.font = "18px 'Fredoka One', sans-serif";
+  ctx.fillStyle = selected ? '#0a1a1a' : '#0a1a1a';
+  ctx.font = "16px 'Fredoka One', sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, x + w / 2, y + h / 2);
 
   ctx.restore();
+  void elapsed; // unused but kept for API stability
 }
 
 export function drawPanel(
@@ -137,22 +202,20 @@ export function drawPanel(
 
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.beginPath();
-  rr(ctx, x + 4, y + 5, w, h, 10);
+  rrect(ctx, x + 4, y + 5, w, h, 10);
   ctx.fill();
 
   // Fill
   ctx.fillStyle = fill;
-  ctx.beginPath();
-  rr(ctx, x, y, w, h, 10);
+  rrect(ctx, x, y, w, h, 10);
   ctx.fill();
 
   // Stroke
   ctx.strokeStyle = stroke;
   ctx.lineWidth = strokeW;
-  ctx.beginPath();
-  rr(ctx, x, y, w, h, 10);
+  rrect(ctx, x, y, w, h, 10);
   ctx.stroke();
 
   ctx.restore();
 }
+

@@ -35,4 +35,4 @@ export interface Scene {
   draw(ctx: CanvasRenderingContext2D): void;
 }
 
-export type SceneName = 'TITLE' | 'SELECT' | 'BRIEFING' | 'GAME' | 'COMPLETE' | 'GAME_OVER';
+export type SceneName = 'TITLE' | 'SELECT' | 'BRIEFING' | 'GAME' | 'COMPLETE' | 'GAME_OVER' | 'UIKIT';

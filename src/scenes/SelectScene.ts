@@ -4,8 +4,7 @@ import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData }
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
-import { drawSpaceBackground, makeStars, type Star } from '@/rendering/drawHelpers';
-import { STAGES } from '@/stages';
+import { drawSpaceBackground, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';import { STAGES } from '@/stages';
 import type { MissionParams } from './sceneParams';
 
 type SelectStep = 'stage' | 'mode';
@@ -126,8 +125,6 @@ export class SelectScene implements Scene {
     }
   }
 
-  // ── Stage select ────────────────────────────────────────────────────────────
-
   private drawStageSelect(ctx: CanvasRenderingContext2D): void {
     this.drawTerminalFrame(ctx);
     this.drawTitleBanner(ctx, 'Choose your mission');
@@ -140,7 +137,11 @@ export class SelectScene implements Scene {
       this.drawStageTile(ctx, i, x, y);
     }
 
-    this.drawControlsBar(ctx, 'Arrows: move', 'Space/Enter: select', 'Esc: back');
+    drawControlsHintsBar(ctx, [
+      ['ARROWS', 'move'],
+      ['SPACE / ENTER', 'select'],
+      ['ESC', 'back'],
+    ]);
   }
 
   private drawStageTile(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {
@@ -151,43 +152,40 @@ export class SelectScene implements Scene {
     const r = 8;
 
     ctx.save();
-    // Drop shadow
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    this.rrect(ctx, x + 3, y + 4, TILE_W, TILE_H, r);
+    rrect(ctx, x + 3, y + 4, TILE_W, TILE_H, r);
     ctx.fill();
 
-    // Tile fill — cyan when selected, silver-gray otherwise
     ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
-    this.rrect(ctx, x, y, TILE_W, TILE_H, r);
+    rrect(ctx, x, y, TILE_W, TILE_H, r);
     ctx.fill();
 
-    // Border / glow
     if (selected) {
       ctx.save();
       ctx.shadowColor = '#00f0ff';
       ctx.shadowBlur = 14;
       ctx.strokeStyle = '#00f0ff';
       ctx.lineWidth = 3;
-      this.rrect(ctx, x, y, TILE_W, TILE_H, r);
+      rrect(ctx, x, y, TILE_W, TILE_H, r);
       ctx.stroke();
       ctx.restore();
     } else {
       ctx.strokeStyle = '#8aacac';
       ctx.lineWidth = 1.5;
-      this.rrect(ctx, x, y, TILE_W, TILE_H, r);
+      rrect(ctx, x, y, TILE_W, TILE_H, r);
       ctx.stroke();
     }
 
-    // Icon badge (dark rounded square)
+    // Icon badge
     const bSz = 46;
     const bX = x + 10;
     const bY = y + (TILE_H - bSz) / 2;
     ctx.fillStyle = '#2a3c3c';
-    this.rrect(ctx, bX, bY, bSz, bSz, 6);
+    rrect(ctx, bX, bY, bSz, bSz, 6);
     ctx.fill();
     ctx.strokeStyle = '#4a6060';
     ctx.lineWidth = 1;
-    this.rrect(ctx, bX, bY, bSz, bSz, 6);
+    rrect(ctx, bX, bY, bSz, bSz, 6);
     ctx.stroke();
 
     ctx.font = '22px sans-serif';
@@ -195,21 +193,17 @@ export class SelectScene implements Scene {
     ctx.textBaseline = 'middle';
     ctx.fillText(stage.icon, bX + bSz / 2, bY + bSz / 2);
 
-    // Title
     const tX = x + 66;
-    const textDark = '#0a1a1a';
     ctx.font = "bold 14px 'Fredoka One', sans-serif";
-    ctx.fillStyle = textDark;
+    ctx.fillStyle = '#0a1a1a';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(stage.title, tX, y + 22);
 
-    // Description
     ctx.font = "12px 'Fredoka One', sans-serif";
     ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
     ctx.fillText(stage.description, tX, y + 40);
 
-    // Cleared badges
     if (crewDone || impostorDone) {
       const badges = [crewDone && '✓ Crew', impostorDone && '✓ Impostor'].filter(Boolean).join('  ');
       ctx.font = "10px 'Fredoka One', sans-serif";
@@ -229,7 +223,7 @@ export class SelectScene implements Scene {
     this.drawTitleBanner(ctx, stage.title);
 
     ctx.save();
-    ctx.font = "13px 'Fredoka One', sans-serif";
+    ctx.font = "14px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#7aa8a8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -239,7 +233,11 @@ export class SelectScene implements Scene {
     this.drawModeTile(ctx, 'crew', MODE_LEFT_X, MODE_Y);
     this.drawModeTile(ctx, 'impostor', MODE_RIGHT_X, MODE_Y);
 
-    this.drawControlsBar(ctx, 'Left/Right: choose', 'Space/Enter: start', 'Esc: back');
+    drawControlsHintsBar(ctx, [
+      ['LEFT / RIGHT', 'choose'],
+      ['SPACE / ENTER', 'start'],
+      ['ESC', 'back'],
+    ]);
   }
 
   private drawModeTile(ctx: CanvasRenderingContext2D, mode: GameMode, x: number, y: number): void {
@@ -258,45 +256,39 @@ export class SelectScene implements Scene {
     const r = 10;
 
     ctx.save();
-    // Drop shadow
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    this.rrect(ctx, x + 4, y + 5, MODE_W, MODE_H, r);
+    rrect(ctx, x + 4, y + 5, MODE_W, MODE_H, r);
     ctx.fill();
 
-    // Tile fill
     ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
-    this.rrect(ctx, x, y, MODE_W, MODE_H, r);
+    rrect(ctx, x, y, MODE_W, MODE_H, r);
     ctx.fill();
 
-    // Border / glow
     if (selected) {
       ctx.save();
       ctx.shadowColor = '#00f0ff';
       ctx.shadowBlur = 16;
       ctx.strokeStyle = '#00f0ff';
       ctx.lineWidth = 3;
-      this.rrect(ctx, x, y, MODE_W, MODE_H, r);
+      rrect(ctx, x, y, MODE_W, MODE_H, r);
       ctx.stroke();
       ctx.restore();
     } else {
       ctx.strokeStyle = '#8aacac';
       ctx.lineWidth = 2;
-      this.rrect(ctx, x, y, MODE_W, MODE_H, r);
+      rrect(ctx, x, y, MODE_W, MODE_H, r);
       ctx.stroke();
     }
 
-    // Mode label
     ctx.font = "16px 'Press Start 2P', monospace";
     ctx.fillStyle = '#0a1a1a';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(modeLabel, x + MODE_W / 2, y + 42);
 
-    // Divider
     ctx.fillStyle = selected ? '#0a3a4a' : accent;
     ctx.fillRect(x + 20, y + 60, MODE_W - 40, 2);
 
-    // Description
     ctx.font = "13px 'Fredoka One', sans-serif";
     ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
     ctx.textAlign = 'center';
@@ -304,7 +296,6 @@ export class SelectScene implements Scene {
     ctx.fillText(desc1, x + MODE_W / 2, y + 88);
     ctx.fillText(desc2, x + MODE_W / 2, y + 108);
 
-    // Progress
     ctx.font = "12px 'Fredoka One', sans-serif";
     ctx.fillStyle = progress.completed ? COLOURS.SUCCESS : selected ? '#0a3a4a' : accent;
     ctx.fillText(missionLabel, x + MODE_W / 2, y + 148);
@@ -314,45 +305,21 @@ export class SelectScene implements Scene {
 
   // ── Shared UI helpers ────────────────────────────────────────────────────────
 
-  /** Thin wrapper around roundRect with rect fallback. Adds path to ctx but does not stroke/fill. */
-  private rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-    if (typeof ctx.roundRect === 'function') {
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, r);
-    } else {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    }
-  }
-
   private drawTerminalFrame(ctx: CanvasRenderingContext2D): void {
     const m = 5;
     const r = 12;
     ctx.save();
-    // Semi-transparent dark overlay to darken space background inside frame
     ctx.fillStyle = 'rgba(6, 12, 12, 0.6)';
-    this.rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
+    rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
     ctx.fill();
-    // Outer frame stroke — metallic teal-gray
     ctx.strokeStyle = '#4a7070';
     ctx.lineWidth = 3;
-    this.rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
+    rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
     ctx.stroke();
-    // Inner highlight ring
     ctx.strokeStyle = '#2a4848';
     ctx.lineWidth = 1;
-    this.rrect(ctx, m + 4, m + 4, CANVAS_WIDTH - (m + 4) * 2, CANVAS_HEIGHT - (m + 4) * 2, r - 2);
+    rrect(ctx, m + 4, m + 4, CANVAS_WIDTH - (m + 4) * 2, CANVAS_HEIGHT - (m + 4) * 2, r - 2);
     ctx.stroke();
-    // Corner bolts
     for (const [bx, by] of [[m + 14, m + 14], [CANVAS_WIDTH - m - 14, m + 14], [m + 14, CANVAS_HEIGHT - m - 14], [CANVAS_WIDTH - m - 14, CANVAS_HEIGHT - m - 14]] as [number, number][]) {
       ctx.fillStyle = '#3a5858';
       ctx.beginPath();
@@ -378,62 +345,17 @@ export class SelectScene implements Scene {
     const bY = 13;
     ctx.save();
     ctx.fillStyle = '#0d1e1e';
-    this.rrect(ctx, bX, bY, bW, bH, 6);
+    rrect(ctx, bX, bY, bW, bH, 6);
     ctx.fill();
     ctx.strokeStyle = '#40d8c0';
     ctx.lineWidth = 2;
-    this.rrect(ctx, bX, bY, bW, bH, 6);
+    rrect(ctx, bX, bY, bW, bH, 6);
     ctx.stroke();
-    ctx.font = "13px 'Press Start 2P', monospace";
+    ctx.font = "16px 'Press Start 2P', monospace";
     ctx.fillStyle = '#40d8c0';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, CANVAS_WIDTH / 2, bY + bH / 2);
-    ctx.restore();
-  }
-
-  private drawControlsBar(ctx: CanvasRenderingContext2D, left: string, center: string, right: string): void {
-    const bX = 14;
-    const bY = CANVAS_HEIGHT - 46;
-    const bW = CANVAS_WIDTH - 28;
-    const bH = 38;
-    ctx.save();
-    ctx.fillStyle = 'rgba(13, 26, 26, 0.9)';
-    this.rrect(ctx, bX, bY, bW, bH, 8);
-    ctx.fill();
-    ctx.strokeStyle = '#3a5454';
-    ctx.lineWidth = 1.5;
-    this.rrect(ctx, bX, bY, bW, bH, 8);
-    ctx.stroke();
-
-    const cy = bY + bH / 2;
-    const hints: [string, number][] = [[left, bX + 28], [center, CANVAS_WIDTH / 2], [right, bX + bW - 28]];
-    const aligns: CanvasTextAlign[] = ['left', 'center', 'right'];
-    for (let i = 0; i < hints.length; i += 1) {
-      const [text, hx] = hints[i];
-      const colon = text.indexOf(':');
-      const label = text.slice(0, colon + 1);
-      const value = text.slice(colon + 1).trim();
-      ctx.textAlign = aligns[i];
-      ctx.textBaseline = 'middle';
-      ctx.font = "11px 'Fredoka One', sans-serif";
-      ctx.fillStyle = '#c0d4d4';
-      ctx.fillText(label + ' ', hx, cy - 1);
-      // measure label to offset value
-      const lw = ctx.measureText(label + ' ').width;
-      const vw = ctx.measureText(value).width;
-      let vx: number;
-      if (aligns[i] === 'left') {
-        vx = hx + lw;
-      } else if (aligns[i] === 'right') {
-        vx = hx - lw - vw;
-      } else {
-        vx = hx - (lw + vw) / 2 + lw;
-      }
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#40d8c0';
-      ctx.fillText(value, vx, cy - 1);
-    }
     ctx.restore();
   }
 }

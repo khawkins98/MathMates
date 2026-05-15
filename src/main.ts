@@ -10,6 +10,7 @@ import { GameOverScene } from '@/scenes/GameOverScene';
 import { GameScene } from '@/scenes/GameScene';
 import { SelectScene } from '@/scenes/SelectScene';
 import { TitleScene } from '@/scenes/TitleScene';
+import { UIKitScene } from '@/scenes/UIKitScene';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 canvas.width = CANVAS_WIDTH;
@@ -51,6 +52,7 @@ async function startGame(): Promise<void> {
 
   manager.register('TITLE', new TitleScene(manager, rr));
   manager.register('SELECT', new SelectScene(manager, rr));
+  manager.register('UIKIT', new UIKitScene(manager, rr));
   manager.register('BRIEFING', new BriefingScene(manager, rr));
   manager.register('GAME', new GameScene(manager, rr, audio));
   manager.register('COMPLETE', new CompleteScene(manager, rr));
