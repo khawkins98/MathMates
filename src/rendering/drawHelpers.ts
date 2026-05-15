@@ -154,31 +154,30 @@ export function drawButton(
   rrect(ctx, x + 3, y + 4, w, h, 8);
   ctx.fill();
 
-  // Fill
-  ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
+  // Fill — dark for both states; selected is identical fill so the border/glow carries the state
+  ctx.fillStyle = '#243838';
   rrect(ctx, x, y, w, h, 8);
   ctx.fill();
 
   // Border
   if (selected) {
     ctx.save();
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 12;
-    ctx.strokeStyle = '#00f0ff';
-    ctx.lineWidth = 3;
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 2.5;
     rrect(ctx, x, y, w, h, 8);
     ctx.stroke();
     ctx.restore();
   } else {
-    ctx.strokeStyle = '#8aacac';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#4a7070';
+    ctx.lineWidth = 2;
     rrect(ctx, x, y, w, h, 8);
     ctx.stroke();
   }
-  ctx.globalAlpha = 1;
 
-  // Label
-  ctx.fillStyle = selected ? '#0a1a1a' : '#0a1a1a';
+  // Label — cyan when selected, off-white when normal
+  ctx.fillStyle = selected ? '#00ffff' : '#f0fafa';
   ctx.font = "16px 'Fredoka One', sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

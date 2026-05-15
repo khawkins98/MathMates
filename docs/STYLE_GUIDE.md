@@ -228,9 +228,9 @@ Width: `min(420, CANVAS_WIDTH - 80)`, height: 36 px, top margin: 13 px.
 
 ### 5.6 `drawButton()` (generic button)
 
-- Normal: fill `#c8dcdc`, stroke `#8aacac` 1.5 px, r=8
-- Selected: fill `#10d8f0`, `shadowColor='#00f0ff'` shadowBlur=12
-- Label: `'Fredoka One'` 16 px, `#0a1a1a`
+- Normal: fill `#243838`, stroke `#4a7070` 2px, r=8, Fredoka One 16px `#f0fafa` text
+- Selected: same fill, `#00ffff` stroke 2.5px + `shadowColor='#00ffff'` shadowBlur=14, text `#00ffff`
+- Drop shadow: `rgba(0,0,0,0.5)` offset `(3,4)` no blur
 
 ### 5.7 Grid Cell
 
