@@ -1,26 +1,35 @@
-import type { Scene } from '@/types';
+import type { Scene, GameMode } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
-import { getModeProgress, getNextScenarioIndex, getProgress, isCrewStageUnlocked, isImpostorStageUnlocked, type ProgressData } from '@/core/progress';
+import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData } from '@/core/progress';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import { drawSpaceBackground, makeStars, type Star } from '@/rendering/drawHelpers';
 import { STAGES } from '@/stages';
-import type { GameMode } from '@/types';
 import type { MissionParams } from './sceneParams';
 
-const TILE_WIDTH = 262;
-const TILE_HEIGHT = 58;
-const LEFT_X = 20;
-const RIGHT_X = 318;
-const TOP_Y = 74;
-const ROW_GAP = 68;
+type SelectStep = 'stage' | 'mode';
+
+// Stage grid: 2 columns × 4 rows
+const TILE_W = 272;
+const TILE_H = 60;
+const COL_X = [16, 312] as const;
+const TOP_Y = 62;
+const ROW_GAP = 72;
+
+// Mode tiles
+const MODE_W = 232;
+const MODE_H = 170;
+const MODE_LEFT_X = 62;
+const MODE_RIGHT_X = 306;
+const MODE_Y = 96;
 
 export class SelectScene implements Scene {
   private manager: SceneManager;
   private progress: ProgressData = getProgress();
+  private step: SelectStep = 'stage';
   private selectedStageIndex = 0;
-  private selectedModeIndex = 0;
+  private selectedModeIndex = 0; // 0 = crew, 1 = impostor
   private elapsed = 0;
   private stars: Star[] = makeStars(48);
 
@@ -31,60 +40,64 @@ export class SelectScene implements Scene {
 
   enter(_params?: Record<string, unknown>): void {
     this.progress = getProgress();
+    this.step = 'stage';
     this.selectedStageIndex = 0;
     this.selectedModeIndex = 0;
-    this.snapToUnlockedTile();
     this.manager.input.setEnabled(true);
   }
 
   exit(): void {}
 
-  private snapToUnlockedTile(): void {
-    const currentMode = this.selectedModeIndex === 0 ? 'crew' : 'impostor';
-    if (this.isUnlocked(this.selectedStageIndex, currentMode)) {
-      return;
-    }
-    for (let stageIndex = 0; stageIndex < STAGES.length; stageIndex += 1) {
-      if (this.isUnlocked(stageIndex, 'crew')) {
-        this.selectedStageIndex = stageIndex;
-        this.selectedModeIndex = 0;
-        return;
-      }
-    }
-  }
-
-  private isUnlocked(stageIndex: number, mode: GameMode): boolean {
-    const stage = STAGES[stageIndex];
-    return mode === 'crew'
-      ? isCrewStageUnlocked(stageIndex, this.progress)
-      : isImpostorStageUnlocked(stage.id, this.progress);
-  }
-
   update(dt: number): void {
     this.elapsed += dt;
     let action = this.manager.input.shift();
     while (action) {
-      switch (action) {
-        case 'up':
-          this.selectedStageIndex = (this.selectedStageIndex - 1 + STAGES.length) % STAGES.length;
-          break;
-        case 'down':
-          this.selectedStageIndex = (this.selectedStageIndex + 1) % STAGES.length;
-          break;
-        case 'left':
-          this.selectedModeIndex = 0;
-          break;
-        case 'right':
-          this.selectedModeIndex = 1;
-          break;
-        case 'back':
-        case 'pause':
-          this.manager.goto('TITLE');
-          return;
-        case 'eat':
-        case 'confirm': {
-          const mode: GameMode = this.selectedModeIndex === 0 ? 'crew' : 'impostor';
-          if (this.isUnlocked(this.selectedStageIndex, mode)) {
+      if (this.step === 'stage') {
+        switch (action) {
+          case 'up':
+            this.selectedStageIndex = (this.selectedStageIndex - 2 + STAGES.length) % STAGES.length;
+            break;
+          case 'down':
+            this.selectedStageIndex = (this.selectedStageIndex + 2) % STAGES.length;
+            break;
+          case 'left':
+            if (this.selectedStageIndex % 2 === 1) this.selectedStageIndex -= 1;
+            break;
+          case 'right':
+            if (this.selectedStageIndex % 2 === 0 && this.selectedStageIndex + 1 < STAGES.length)
+              this.selectedStageIndex += 1;
+            break;
+          case 'back':
+          case 'pause':
+            this.manager.goto('TITLE');
+            return;
+          case 'eat':
+          case 'confirm':
+            this.step = 'mode';
+            this.selectedModeIndex = 0;
+            break;
+          default:
+            break;
+        }
+      } else {
+        switch (action) {
+          case 'left':
+            this.selectedModeIndex = 0;
+            break;
+          case 'right':
+            this.selectedModeIndex = 1;
+            break;
+          case 'up':
+          case 'down':
+            this.selectedModeIndex = 1 - this.selectedModeIndex;
+            break;
+          case 'back':
+          case 'pause':
+            this.step = 'stage';
+            break;
+          case 'eat':
+          case 'confirm': {
+            const mode: GameMode = this.selectedModeIndex === 0 ? 'crew' : 'impostor';
             const stage = STAGES[this.selectedStageIndex];
             const params: MissionParams = {
               stageId: stage.id,
@@ -96,33 +109,141 @@ export class SelectScene implements Scene {
             this.manager.goto('BRIEFING', params as unknown as Record<string, unknown>);
             return;
           }
-          break;
+          default:
+            break;
         }
-        default:
-          break;
       }
       action = this.manager.input.shift();
     }
   }
 
-  private tileX(mode: GameMode): number {
-    return mode === 'crew' ? LEFT_X : RIGHT_X;
-  }
-
   draw(ctx: CanvasRenderingContext2D): void {
     drawSpaceBackground(ctx, this.elapsed, this.stars);
+    if (this.step === 'stage') {
+      this.drawStageSelect(ctx);
+    } else {
+      this.drawModeSelect(ctx);
+    }
+  }
 
-    // Heading
+  // ── Stage select ────────────────────────────────────────────────────────────
+
+  private drawStageSelect(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    ctx.font = "16px 'Press Start 2P', monospace";
+    ctx.font = "15px 'Press Start 2P', monospace";
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#080c0c';
     ctx.lineWidth = 5;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.strokeText('Choose a mission', CANVAS_WIDTH / 2, 28);
+    ctx.strokeText('Choose your mission', CANVAS_WIDTH / 2, 26);
     ctx.fillStyle = '#f0fafa';
-    ctx.fillText('Choose a mission', CANVAS_WIDTH / 2, 28);
+    ctx.fillText('Choose your mission', CANVAS_WIDTH / 2, 26);
+    ctx.restore();
+
+    for (let i = 0; i < STAGES.length; i += 1) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = COL_X[col];
+      const y = TOP_Y + row * ROW_GAP;
+      this.drawStageTile(ctx, i, x, y);
+    }
+
+    ctx.save();
+    ctx.font = "11px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#7aa8a8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      'Arrows: move  •  Space/Enter: select  •  Esc: back',
+      CANVAS_WIDTH / 2,
+      CANVAS_HEIGHT - 10,
+    );
+    ctx.restore();
+  }
+
+  private drawStageTile(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {
+    const stage = STAGES[index];
+    const selected = this.selectedStageIndex === index;
+    const crewDone = getModeProgress(stage.id, 'crew', this.progress).completed;
+    const impostorDone = getModeProgress(stage.id, 'impostor', this.progress).completed;
+
+    ctx.save();
+    // Drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(x + 3, y + 4, TILE_W, TILE_H);
+    // Fill
+    ctx.fillStyle = '#ddf4f0';
+    ctx.fillRect(x, y, TILE_W, TILE_H);
+    // Border
+    if (selected) {
+      const pulse = 0.55 + 0.45 * Math.sin(this.elapsed * 0.006);
+      ctx.strokeStyle = COLOURS.PLAYER_CREW;
+      ctx.lineWidth = 4;
+      ctx.globalAlpha = 0.5 + 0.5 * pulse;
+    } else {
+      ctx.strokeStyle = '#080c0c';
+      ctx.lineWidth = 2;
+    }
+    ctx.strokeRect(x, y, TILE_W, TILE_H);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // Icon
+    ctx.save();
+    ctx.font = '22px sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(stage.icon, x + 8, y + 30);
+    ctx.restore();
+
+    // Title
+    ctx.save();
+    ctx.font = "bold 13px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#080c0c';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stage.title, x + 38, y + 16);
+    ctx.restore();
+
+    // Description
+    ctx.save();
+    ctx.font = "11px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#2a4040';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stage.description, x + 38, y + 31);
+    ctx.restore();
+
+    // Cleared badges
+    if (crewDone || impostorDone) {
+      const badges = [crewDone && 'Crew', impostorDone && 'Impostor'].filter(Boolean).join(' & ');
+      ctx.save();
+      ctx.font = "10px 'Fredoka One', sans-serif";
+      ctx.fillStyle = COLOURS.SUCCESS;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`✓ ${badges}`, x + 38, y + 48);
+      ctx.restore();
+    }
+  }
+
+  // ── Mode select ─────────────────────────────────────────────────────────────
+
+  private drawModeSelect(ctx: CanvasRenderingContext2D): void {
+    const stage = STAGES[this.selectedStageIndex];
+
+    // Stage name
+    ctx.save();
+    ctx.font = "13px 'Press Start 2P', monospace";
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#080c0c';
+    ctx.lineWidth = 5;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeText(stage.title, CANVAS_WIDTH / 2, 32);
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(stage.title, CANVAS_WIDTH / 2, 32);
     ctx.restore();
 
     ctx.save();
@@ -130,107 +251,92 @@ export class SelectScene implements Scene {
     ctx.fillStyle = '#7aa8a8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Each stage has a crew run and an impostor flip-side.', CANVAS_WIDTH / 2, 50);
+    ctx.fillText('How do you want to play?', CANVAS_WIDTH / 2, 60);
     ctx.restore();
 
-    for (let stageIndex = 0; stageIndex < STAGES.length; stageIndex += 1) {
-      const stage = STAGES[stageIndex];
-      const y = TOP_Y + stageIndex * ROW_GAP;
-      this.drawTile(ctx, stageIndex, 'crew', this.tileX('crew'), y, stage);
-      this.drawTile(ctx, stageIndex, 'impostor', this.tileX('impostor'), y, stage);
-    }
+    this.drawModeTile(ctx, 'crew', MODE_LEFT_X, MODE_Y);
+    this.drawModeTile(ctx, 'impostor', MODE_RIGHT_X, MODE_Y);
 
     ctx.save();
-    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.font = "11px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#7aa8a8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Arrows: move  •  Space/Enter: start  •  Esc/Backspace: title', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 16);
+    ctx.fillText(
+      'Left/Right: choose  •  Space/Enter: start  •  Esc: back',
+      CANVAS_WIDTH / 2,
+      CANVAS_HEIGHT - 10,
+    );
     ctx.restore();
   }
 
-  private drawTile(
-    ctx: CanvasRenderingContext2D,
-    stageIndex: number,
-    mode: GameMode,
-    x: number,
-    y: number,
-    stage: (typeof STAGES)[number],
-  ): void {
-    const unlocked = this.isUnlocked(stageIndex, mode);
-    const selected = this.selectedStageIndex === stageIndex && (this.selectedModeIndex === 0 ? 'crew' : 'impostor') === mode;
-    const accent = mode === 'crew' ? COLOURS.SUCCESS : COLOURS.DANGER;
+  private drawModeTile(ctx: CanvasRenderingContext2D, mode: GameMode, x: number, y: number): void {
+    const stage = STAGES[this.selectedStageIndex];
+    const selected =
+      (mode === 'crew' && this.selectedModeIndex === 0) ||
+      (mode === 'impostor' && this.selectedModeIndex === 1);
     const progress = getModeProgress(stage.id, mode, this.progress);
+    const accent = mode === 'crew' ? COLOURS.PLAYER_CREW : COLOURS.PLAYER_IMPOSTOR;
+    const modeLabel = mode === 'crew' ? 'CREW' : 'IMPOSTOR';
+    const desc1 = mode === 'crew' ? 'Eat the correct answers.' : 'Break the wrong answers.';
+    const desc2 = mode === 'crew' ? 'Avoid the impostors!' : 'Outrun the crewmates!';
+    const missionLabel = progress.completed
+      ? '✓ Complete!'
+      : `Mission ${Math.min(progress.completedScenarios + 1, stage.scenarios.length)} / ${stage.scenarios.length}`;
 
-    // Tile background
-    const tileFill = unlocked ? '#ddf4f0' : '#1e3030';
-    const tileBorder = selected
-      ? accent
-      : unlocked
-        ? '#080c0c'
-        : '#2a4040';
-
-    // Drop shadow
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.fillRect(x + 3, y + 4, TILE_WIDTH, TILE_HEIGHT);
-
-    ctx.fillStyle = tileFill;
-    ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT);
-
-    // Selected pulse border
+    // Drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x + 4, y + 5, MODE_W, MODE_H);
+    // Fill
+    ctx.fillStyle = '#ddf4f0';
+    ctx.fillRect(x, y, MODE_W, MODE_H);
+    // Border
     if (selected) {
       const pulse = 0.55 + 0.45 * Math.sin(this.elapsed * 0.006);
       ctx.strokeStyle = accent;
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 5;
       ctx.globalAlpha = 0.5 + 0.5 * pulse;
     } else {
-      ctx.strokeStyle = tileBorder;
+      ctx.strokeStyle = '#080c0c';
       ctx.lineWidth = 3;
     }
-    ctx.strokeRect(x, y, TILE_WIDTH, TILE_HEIGHT);
+    ctx.strokeRect(x, y, MODE_W, MODE_H);
     ctx.globalAlpha = 1;
-
-    if (!unlocked) {
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(x, y, TILE_WIDTH, TILE_HEIGHT);
-    }
     ctx.restore();
 
-    // Text
+    // Mode label
     ctx.save();
-    const textColour = unlocked ? '#080c0c' : '#7aa8a8';
+    ctx.font = "16px 'Press Start 2P', monospace";
+    ctx.fillStyle = '#080c0c';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.fillText(modeLabel, x + MODE_W / 2, y + 44);
+    ctx.restore();
 
-    // Icon
-    ctx.font = "20px 'Fredoka One', sans-serif";
-    ctx.fillStyle = textColour;
-    ctx.textAlign = 'left';
-    ctx.fillText(stage.icon, x + 10, y + 16);
+    // Accent divider
+    ctx.save();
+    ctx.fillStyle = accent;
+    ctx.fillRect(x + 20, y + 62, MODE_W - 40, 3);
+    ctx.restore();
 
-    // Title + mode
-    ctx.font = "bold 14px 'Fredoka One', sans-serif";
-    ctx.fillStyle = textColour;
-    ctx.fillText(`${stage.title} — ${mode === 'crew' ? 'Crew' : 'Impostor'}`, x + 42, y + 16);
+    // Description lines
+    ctx.save();
+    ctx.font = "13px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#2a4040';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(desc1, x + MODE_W / 2, y + 88);
+    ctx.fillText(desc2, x + MODE_W / 2, y + 106);
+    ctx.restore();
 
-    // Description
-    ctx.font = "12px 'Fredoka One', sans-serif";
-    ctx.fillStyle = unlocked ? '#2a4040' : '#5a7070';
-    ctx.fillText(stage.description, x + 42, y + 33);
-
-    // Progress / lock label
-    ctx.fillStyle = unlocked ? accent : '#5a7070';
-    ctx.font = "11px 'Fredoka One', sans-serif";
-    const missionLabel = progress.completed
-      ? 'Complete ✓'
-      : `Mission ${Math.min(progress.completedScenarios + 1, stage.scenarios.length)}/${stage.scenarios.length}`;
-    const lockedLabel = mode === 'crew'
-      ? stageIndex === 0
-        ? 'Unlocked'
-        : `Clear ${STAGES[stageIndex - 1].title} first`
-      : 'Beat crew mode first';
-    ctx.fillText(unlocked ? missionLabel : `🔒 ${lockedLabel}`, x + 42, y + 49);
-
+    // Progress
+    ctx.save();
+    ctx.font = "13px 'Fredoka One', sans-serif";
+    ctx.fillStyle = progress.completed ? COLOURS.SUCCESS : accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(missionLabel, x + MODE_W / 2, y + 142);
     ctx.restore();
   }
 }

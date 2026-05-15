@@ -117,13 +117,6 @@ export class CompleteScene implements Scene {
       ctx.fillStyle = COLOURS.GOLD;
       ctx.fillText('⭐ Par time bonus +50!', CANVAS_WIDTH / 2, 276);
     }
-    if (result?.impostorUnlockedNow) {
-      ctx.fillStyle = '#ffd6d6';
-      ctx.fillText('Impostor mode unlocked!', CANVAS_WIDTH / 2, 300);
-    } else if (result?.nextCrewStageUnlocked) {
-      ctx.fillStyle = '#d6f9d6';
-      ctx.fillText('A new crew stage is now unlocked!', CANVAS_WIDTH / 2, 300);
-    }
     ctx.restore();
 
     const nextEnabled = Boolean(result?.nextMission);

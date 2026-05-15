@@ -1,6 +1,6 @@
 import { AudioManager } from '@/audio/AudioManager';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, CELL_GAP, CELL_SIZE, FLASH_DURATION, GRID_COLS, GRID_OFFSET_X, GRID_OFFSET_Y, GRID_ROWS, STARTING_LIVES } from '@/constants';
-import { getProgress, isImpostorStageUnlocked, recordStageResult } from '@/core/progress';
+import { recordStageResult } from '@/core/progress';
 import type { SceneManager } from '@/core/SceneManager';
 import { AICrewmate } from '@/entities/AICrewmate';
 import { AIWanderer } from '@/entities/AIWanderer';
@@ -318,7 +318,7 @@ export class GameScene implements Scene {
         this.bonusAwarded = true;
       }
       const progression = recordStageResult(this.stage.id, this.mission.mode, this.mission.scenarioIndex, this.score, this.elapsedMs);
-      const nextMission = this.buildNextMission(progression.stageJustCompleted, progression.impostorJustUnlocked, progression.nextCrewStageUnlocked);
+      const nextMission = this.buildNextMission(progression.stageJustCompleted);
       const completeParams: CompleteSceneParams = {
         ...this.mission,
         stageTitle: this.stage.title,
@@ -328,8 +328,6 @@ export class GameScene implements Scene {
         timeMs: this.elapsedMs,
         lives: this.lives,
         bonusAwarded: this.bonusAwarded,
-        impostorUnlockedNow: progression.impostorJustUnlocked,
-        nextCrewStageUnlocked: progression.nextCrewStageUnlocked,
         nextMission,
       };
       this.ended = true;
@@ -343,15 +341,12 @@ export class GameScene implements Scene {
     }
   }
 
-  private buildNextMission(
-    stageJustCompleted: boolean,
-    impostorJustUnlocked: boolean,
-    nextCrewStageUnlocked: boolean,
-  ): MissionParams | null {
+  private buildNextMission(stageJustCompleted: boolean): MissionParams | null {
     if (!this.mission || !this.stage) {
       return null;
     }
 
+    // Next scenario within current stage
     if (this.mission.scenarioIndex + 1 < this.stage.scenarios.length) {
       return {
         ...this.mission,
@@ -360,7 +355,8 @@ export class GameScene implements Scene {
       };
     }
 
-    if (this.mission.mode === 'crew' && stageJustCompleted && impostorJustUnlocked) {
+    // Finished all crew scenarios for the first time → pivot to impostor on same stage
+    if (this.mission.mode === 'crew' && stageJustCompleted) {
       return {
         stageId: this.stage.id,
         stageIndex: this.mission.stageIndex,
@@ -370,31 +366,16 @@ export class GameScene implements Scene {
       };
     }
 
-    if (this.mission.mode === 'crew' && nextCrewStageUnlocked) {
-      const nextStage = STAGES[this.mission.stageIndex + 1];
-      if (nextStage) {
-        return {
-          stageId: nextStage.id,
-          stageIndex: this.mission.stageIndex + 1,
-          scenarioIndex: 0,
-          mode: 'crew',
-          seed: Date.now() % 1000000,
-        };
-      }
-    }
-
-    if (this.mission.mode === 'impostor') {
-      const nextStage = STAGES[this.mission.stageIndex + 1];
-      const progress = getProgress();
-      if (nextStage && isImpostorStageUnlocked(nextStage.id, progress)) {
-        return {
-          stageId: nextStage.id,
-          stageIndex: this.mission.stageIndex + 1,
-          scenarioIndex: 0,
-          mode: 'impostor',
-          seed: Date.now() % 1000000,
-        };
-      }
+    // Any other completion → advance to next stage in the same mode
+    const nextStage = STAGES[this.mission.stageIndex + 1];
+    if (nextStage) {
+      return {
+        stageId: nextStage.id,
+        stageIndex: this.mission.stageIndex + 1,
+        scenarioIndex: 0,
+        mode: this.mission.mode,
+        seed: Date.now() % 1000000,
+      };
     }
 
     return null;

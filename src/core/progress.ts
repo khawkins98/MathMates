@@ -83,17 +83,6 @@ export function getModeProgress(stageId: string, mode: GameMode, progress = getP
   return progress.stages[stageId]?.[mode] ?? makeModeProgress();
 }
 
-export function isCrewStageUnlocked(stageIndex: number, progress = getProgress()): boolean {
-  if (stageIndex <= 0) {
-    return true;
-  }
-  const previousStage = STAGES[stageIndex - 1];
-  return progress.stages[previousStage.id]?.crew.completed ?? false;
-}
-
-export function isImpostorStageUnlocked(stageId: string, progress = getProgress()): boolean {
-  return progress.stages[stageId]?.crew.completed ?? false;
-}
 
 export function getNextScenarioIndex(stageId: string, mode: GameMode, progress = getProgress()): number {
   const stage = STAGES.find((candidate) => candidate.id === stageId);
@@ -110,11 +99,11 @@ export function recordStageResult(
   scenarioIndex: number,
   score: number,
   timeMs: number,
-): { stageJustCompleted: boolean; impostorJustUnlocked: boolean; nextCrewStageUnlocked: boolean } {
+): { stageJustCompleted: boolean } {
   const progress = getProgress();
   const stageIndex = STAGES.findIndex((stage) => stage.id === stageId);
   if (stageIndex === -1) {
-    return { stageJustCompleted: false, impostorJustUnlocked: false, nextCrewStageUnlocked: false };
+    return { stageJustCompleted: false };
   }
 
   const stage = STAGES[stageIndex];
@@ -129,16 +118,6 @@ export function recordStageResult(
   saveProgress(progress);
 
   const stageJustCompleted = !wasCompleted && modeProgress.completed;
-  const impostorJustUnlocked = mode === 'crew' && stageJustCompleted;
-  const nextCrewStageUnlocked =
-    mode === 'crew' &&
-    stageJustCompleted &&
-    stageIndex < STAGES.length - 1 &&
-    isCrewStageUnlocked(stageIndex + 1, progress);
 
-  return {
-    stageJustCompleted,
-    impostorJustUnlocked,
-    nextCrewStageUnlocked,
-  };
+  return { stageJustCompleted };
 }

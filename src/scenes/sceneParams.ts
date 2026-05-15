@@ -16,8 +16,6 @@ export interface CompleteSceneParams extends MissionParams {
   timeMs: number;
   lives: number;
   bonusAwarded: boolean;
-  impostorUnlockedNow: boolean;
-  nextCrewStageUnlocked: boolean;
   nextMission: MissionParams | null;
 }
 
