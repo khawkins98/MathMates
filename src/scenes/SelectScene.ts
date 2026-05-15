@@ -12,17 +12,17 @@ type SelectStep = 'stage' | 'mode';
 
 // Stage grid: 2 columns × 4 rows
 const TILE_W = 272;
-const TILE_H = 60;
+const TILE_H = 72;
 const COL_X = [16, 312] as const;
-const TOP_Y = 62;
-const ROW_GAP = 72;
+const TOP_Y = 60;
+const ROW_GAP = 80;
 
 // Mode tiles
 const MODE_W = 232;
-const MODE_H = 170;
+const MODE_H = 174;
 const MODE_LEFT_X = 62;
 const MODE_RIGHT_X = 306;
-const MODE_Y = 96;
+const MODE_Y = 90;
 
 export class SelectScene implements Scene {
   private manager: SceneManager;
@@ -129,17 +129,8 @@ export class SelectScene implements Scene {
   // ── Stage select ────────────────────────────────────────────────────────────
 
   private drawStageSelect(ctx: CanvasRenderingContext2D): void {
-    ctx.save();
-    ctx.font = "15px 'Press Start 2P', monospace";
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#080c0c';
-    ctx.lineWidth = 5;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.strokeText('Choose your mission', CANVAS_WIDTH / 2, 26);
-    ctx.fillStyle = '#f0fafa';
-    ctx.fillText('Choose your mission', CANVAS_WIDTH / 2, 26);
-    ctx.restore();
+    this.drawTerminalFrame(ctx);
+    this.drawTitleBanner(ctx, 'Choose your mission');
 
     for (let i = 0; i < STAGES.length; i += 1) {
       const col = i % 2;
@@ -149,17 +140,7 @@ export class SelectScene implements Scene {
       this.drawStageTile(ctx, i, x, y);
     }
 
-    ctx.save();
-    ctx.font = "11px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#7aa8a8';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(
-      'Arrows: move  •  Space/Enter: select  •  Esc: back',
-      CANVAS_WIDTH / 2,
-      CANVAS_HEIGHT - 10,
-    );
-    ctx.restore();
+    this.drawControlsBar(ctx, 'Arrows: move', 'Space/Enter: select', 'Esc: back');
   }
 
   private drawStageTile(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {
@@ -167,65 +148,76 @@ export class SelectScene implements Scene {
     const selected = this.selectedStageIndex === index;
     const crewDone = getModeProgress(stage.id, 'crew', this.progress).completed;
     const impostorDone = getModeProgress(stage.id, 'impostor', this.progress).completed;
+    const r = 8;
 
     ctx.save();
     // Drop shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.fillRect(x + 3, y + 4, TILE_W, TILE_H);
-    // Fill
-    ctx.fillStyle = '#ddf4f0';
-    ctx.fillRect(x, y, TILE_W, TILE_H);
-    // Border
-    if (selected) {
-      const pulse = 0.55 + 0.45 * Math.sin(this.elapsed * 0.006);
-      ctx.strokeStyle = COLOURS.PLAYER_CREW;
-      ctx.lineWidth = 4;
-      ctx.globalAlpha = 0.5 + 0.5 * pulse;
-    } else {
-      ctx.strokeStyle = '#080c0c';
-      ctx.lineWidth = 2;
-    }
-    ctx.strokeRect(x, y, TILE_W, TILE_H);
-    ctx.globalAlpha = 1;
-    ctx.restore();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    this.rrect(ctx, x + 3, y + 4, TILE_W, TILE_H, r);
+    ctx.fill();
 
-    // Icon
-    ctx.save();
+    // Tile fill — cyan when selected, silver-gray otherwise
+    ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
+    this.rrect(ctx, x, y, TILE_W, TILE_H, r);
+    ctx.fill();
+
+    // Border / glow
+    if (selected) {
+      ctx.save();
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 3;
+      this.rrect(ctx, x, y, TILE_W, TILE_H, r);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = '#8aacac';
+      ctx.lineWidth = 1.5;
+      this.rrect(ctx, x, y, TILE_W, TILE_H, r);
+      ctx.stroke();
+    }
+
+    // Icon badge (dark rounded square)
+    const bSz = 46;
+    const bX = x + 10;
+    const bY = y + (TILE_H - bSz) / 2;
+    ctx.fillStyle = '#2a3c3c';
+    this.rrect(ctx, bX, bY, bSz, bSz, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#4a6060';
+    ctx.lineWidth = 1;
+    this.rrect(ctx, bX, bY, bSz, bSz, 6);
+    ctx.stroke();
+
     ctx.font = '22px sans-serif';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    ctx.fillText(stage.icon, x + 8, y + 30);
-    ctx.restore();
+    ctx.fillText(stage.icon, bX + bSz / 2, bY + bSz / 2);
 
     // Title
-    ctx.save();
-    ctx.font = "bold 13px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#080c0c';
+    const tX = x + 66;
+    const textDark = '#0a1a1a';
+    ctx.font = "bold 14px 'Fredoka One', sans-serif";
+    ctx.fillStyle = textDark;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(stage.title, x + 38, y + 16);
-    ctx.restore();
+    ctx.fillText(stage.title, tX, y + 22);
 
     // Description
-    ctx.save();
-    ctx.font = "11px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#2a4040';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(stage.description, x + 38, y + 31);
-    ctx.restore();
+    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
+    ctx.fillText(stage.description, tX, y + 40);
 
     // Cleared badges
     if (crewDone || impostorDone) {
-      const badges = [crewDone && 'Crew', impostorDone && 'Impostor'].filter(Boolean).join(' & ');
-      ctx.save();
+      const badges = [crewDone && '✓ Crew', impostorDone && '✓ Impostor'].filter(Boolean).join('  ');
       ctx.font = "10px 'Fredoka One', sans-serif";
-      ctx.fillStyle = COLOURS.SUCCESS;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`✓ ${badges}`, x + 38, y + 48);
-      ctx.restore();
+      ctx.fillStyle = selected ? '#054030' : COLOURS.SUCCESS;
+      ctx.fillText(badges as string, tX, y + 58);
     }
+
+    ctx.restore();
   }
 
   // ── Mode select ─────────────────────────────────────────────────────────────
@@ -233,41 +225,21 @@ export class SelectScene implements Scene {
   private drawModeSelect(ctx: CanvasRenderingContext2D): void {
     const stage = STAGES[this.selectedStageIndex];
 
-    // Stage name
-    ctx.save();
-    ctx.font = "13px 'Press Start 2P', monospace";
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#080c0c';
-    ctx.lineWidth = 5;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.strokeText(stage.title, CANVAS_WIDTH / 2, 32);
-    ctx.fillStyle = '#f0fafa';
-    ctx.fillText(stage.title, CANVAS_WIDTH / 2, 32);
-    ctx.restore();
+    this.drawTerminalFrame(ctx);
+    this.drawTitleBanner(ctx, stage.title);
 
     ctx.save();
     ctx.font = "13px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#7aa8a8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('How do you want to play?', CANVAS_WIDTH / 2, 60);
+    ctx.fillText('How do you want to play?', CANVAS_WIDTH / 2, 66);
     ctx.restore();
 
     this.drawModeTile(ctx, 'crew', MODE_LEFT_X, MODE_Y);
     this.drawModeTile(ctx, 'impostor', MODE_RIGHT_X, MODE_Y);
 
-    ctx.save();
-    ctx.font = "11px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#7aa8a8';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(
-      'Left/Right: choose  •  Space/Enter: start  •  Esc: back',
-      CANVAS_WIDTH / 2,
-      CANVAS_HEIGHT - 10,
-    );
-    ctx.restore();
+    this.drawControlsBar(ctx, 'Left/Right: choose', 'Space/Enter: start', 'Esc: back');
   }
 
   private drawModeTile(ctx: CanvasRenderingContext2D, mode: GameMode, x: number, y: number): void {
@@ -283,60 +255,185 @@ export class SelectScene implements Scene {
     const missionLabel = progress.completed
       ? '✓ Complete!'
       : `Mission ${Math.min(progress.completedScenarios + 1, stage.scenarios.length)} / ${stage.scenarios.length}`;
+    const r = 10;
 
     ctx.save();
     // Drop shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(x + 4, y + 5, MODE_W, MODE_H);
-    // Fill
-    ctx.fillStyle = '#ddf4f0';
-    ctx.fillRect(x, y, MODE_W, MODE_H);
-    // Border
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    this.rrect(ctx, x + 4, y + 5, MODE_W, MODE_H, r);
+    ctx.fill();
+
+    // Tile fill
+    ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
+    this.rrect(ctx, x, y, MODE_W, MODE_H, r);
+    ctx.fill();
+
+    // Border / glow
     if (selected) {
-      const pulse = 0.55 + 0.45 * Math.sin(this.elapsed * 0.006);
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 5;
-      ctx.globalAlpha = 0.5 + 0.5 * pulse;
-    } else {
-      ctx.strokeStyle = '#080c0c';
+      ctx.save();
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = '#00f0ff';
       ctx.lineWidth = 3;
+      this.rrect(ctx, x, y, MODE_W, MODE_H, r);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = '#8aacac';
+      ctx.lineWidth = 2;
+      this.rrect(ctx, x, y, MODE_W, MODE_H, r);
+      ctx.stroke();
     }
-    ctx.strokeRect(x, y, MODE_W, MODE_H);
-    ctx.globalAlpha = 1;
-    ctx.restore();
 
     // Mode label
-    ctx.save();
     ctx.font = "16px 'Press Start 2P', monospace";
-    ctx.fillStyle = '#080c0c';
+    ctx.fillStyle = '#0a1a1a';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(modeLabel, x + MODE_W / 2, y + 44);
-    ctx.restore();
+    ctx.fillText(modeLabel, x + MODE_W / 2, y + 42);
 
-    // Accent divider
-    ctx.save();
-    ctx.fillStyle = accent;
-    ctx.fillRect(x + 20, y + 62, MODE_W - 40, 3);
-    ctx.restore();
+    // Divider
+    ctx.fillStyle = selected ? '#0a3a4a' : accent;
+    ctx.fillRect(x + 20, y + 60, MODE_W - 40, 2);
 
-    // Description lines
-    ctx.save();
+    // Description
     ctx.font = "13px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#2a4040';
+    ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(desc1, x + MODE_W / 2, y + 88);
-    ctx.fillText(desc2, x + MODE_W / 2, y + 106);
-    ctx.restore();
+    ctx.fillText(desc2, x + MODE_W / 2, y + 108);
 
     // Progress
+    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.fillStyle = progress.completed ? COLOURS.SUCCESS : selected ? '#0a3a4a' : accent;
+    ctx.fillText(missionLabel, x + MODE_W / 2, y + 148);
+
+    ctx.restore();
+  }
+
+  // ── Shared UI helpers ────────────────────────────────────────────────────────
+
+  /** Thin wrapper around roundRect with rect fallback. Adds path to ctx but does not stroke/fill. */
+  private rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+  }
+
+  private drawTerminalFrame(ctx: CanvasRenderingContext2D): void {
+    const m = 5;
+    const r = 12;
     ctx.save();
-    ctx.font = "13px 'Fredoka One', sans-serif";
-    ctx.fillStyle = progress.completed ? COLOURS.SUCCESS : accent;
+    // Semi-transparent dark overlay to darken space background inside frame
+    ctx.fillStyle = 'rgba(6, 12, 12, 0.6)';
+    this.rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
+    ctx.fill();
+    // Outer frame stroke — metallic teal-gray
+    ctx.strokeStyle = '#4a7070';
+    ctx.lineWidth = 3;
+    this.rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
+    ctx.stroke();
+    // Inner highlight ring
+    ctx.strokeStyle = '#2a4848';
+    ctx.lineWidth = 1;
+    this.rrect(ctx, m + 4, m + 4, CANVAS_WIDTH - (m + 4) * 2, CANVAS_HEIGHT - (m + 4) * 2, r - 2);
+    ctx.stroke();
+    // Corner bolts
+    for (const [bx, by] of [[m + 14, m + 14], [CANVAS_WIDTH - m - 14, m + 14], [m + 14, CANVAS_HEIGHT - m - 14], [CANVAS_WIDTH - m - 14, CANVAS_HEIGHT - m - 14]] as [number, number][]) {
+      ctx.fillStyle = '#3a5858';
+      ctx.beginPath();
+      ctx.arc(bx, by, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#5a8080';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.strokeStyle = '#1e3030';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(bx - 2.5, by); ctx.lineTo(bx + 2.5, by);
+      ctx.moveTo(bx, by - 2.5); ctx.lineTo(bx, by + 2.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  private drawTitleBanner(ctx: CanvasRenderingContext2D, text: string): void {
+    const bW = Math.min(420, CANVAS_WIDTH - 80);
+    const bH = 36;
+    const bX = (CANVAS_WIDTH - bW) / 2;
+    const bY = 13;
+    ctx.save();
+    ctx.fillStyle = '#0d1e1e';
+    this.rrect(ctx, bX, bY, bW, bH, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#40d8c0';
+    ctx.lineWidth = 2;
+    this.rrect(ctx, bX, bY, bW, bH, 6);
+    ctx.stroke();
+    ctx.font = "13px 'Press Start 2P', monospace";
+    ctx.fillStyle = '#40d8c0';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(missionLabel, x + MODE_W / 2, y + 142);
+    ctx.fillText(text, CANVAS_WIDTH / 2, bY + bH / 2);
+    ctx.restore();
+  }
+
+  private drawControlsBar(ctx: CanvasRenderingContext2D, left: string, center: string, right: string): void {
+    const bX = 14;
+    const bY = CANVAS_HEIGHT - 46;
+    const bW = CANVAS_WIDTH - 28;
+    const bH = 38;
+    ctx.save();
+    ctx.fillStyle = 'rgba(13, 26, 26, 0.9)';
+    this.rrect(ctx, bX, bY, bW, bH, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#3a5454';
+    ctx.lineWidth = 1.5;
+    this.rrect(ctx, bX, bY, bW, bH, 8);
+    ctx.stroke();
+
+    const cy = bY + bH / 2;
+    const hints: [string, number][] = [[left, bX + 28], [center, CANVAS_WIDTH / 2], [right, bX + bW - 28]];
+    const aligns: CanvasTextAlign[] = ['left', 'center', 'right'];
+    for (let i = 0; i < hints.length; i += 1) {
+      const [text, hx] = hints[i];
+      const colon = text.indexOf(':');
+      const label = text.slice(0, colon + 1);
+      const value = text.slice(colon + 1).trim();
+      ctx.textAlign = aligns[i];
+      ctx.textBaseline = 'middle';
+      ctx.font = "11px 'Fredoka One', sans-serif";
+      ctx.fillStyle = '#c0d4d4';
+      ctx.fillText(label + ' ', hx, cy - 1);
+      // measure label to offset value
+      const lw = ctx.measureText(label + ' ').width;
+      const vw = ctx.measureText(value).width;
+      let vx: number;
+      if (aligns[i] === 'left') {
+        vx = hx + lw;
+      } else if (aligns[i] === 'right') {
+        vx = hx - lw - vw;
+      } else {
+        vx = hx - (lw + vw) / 2 + lw;
+      }
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#40d8c0';
+      ctx.fillText(value, vx, cy - 1);
+    }
     ctx.restore();
   }
 }
