@@ -1,6 +1,6 @@
 # MathMates
 
-A grid-based maths game for KS1–2 children (ages 5–9). Navigate a space-crew grid, eating correct answers to complete missions. Built with TypeScript, Canvas 2D, and [Rough.js](https://roughjs.com) for a sketchy, hand-drawn look.
+A grid-based maths game for KS1–2 children (ages 5–9). Navigate a space-crew grid, eating correct answers to complete missions. Built with TypeScript and Canvas 2D.
 
 Inspired by *Number Munchers*. Space-crew theme.
 
@@ -20,6 +20,7 @@ Inspired by *Number Munchers*. Space-crew theme.
 | Space / Enter | Eat the current cell |
 | S | Mark cell as "sus" |
 | Escape | Pause |
+| Backtick (`) | Open UIKit dev scene (from title screen) |
 
 ## Play
 
@@ -76,17 +77,18 @@ See [`docs/PRD.md`](docs/PRD.md) for the full `ScenarioDefinition` spec and arch
 
 ```
 src/
-  core/        # Game loop, scene manager, input
-  scenes/      # Title, select, briefing, game, complete, game-over
+  core/        # Game loop, scene manager, input, progress tracking
+  scenes/      # Title, select, briefing, game, complete, game-over, UIKit
   entities/    # Grid, cell, player, AI characters
   scenarios/   # All scenario definitions (one file per topic group)
-  rendering/   # Rough.js wrappers, palette
+  rendering/   # Canvas 2D helpers, Rough.js wrapper (game grid), colour palette
   audio/       # Audio manager
-  ui/          # HUD, buttons, overlays
+  ui/          # HUD
   types.ts
   constants.ts
 docs/
-  PRD.md       # Full product requirements and architecture spec
+  PRD.md         # Full product requirements and architecture spec
+  STYLE_GUIDE.md # Visual design conventions and Canvas 2D primitives
 ```
 
 ---

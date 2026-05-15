@@ -3,8 +3,8 @@ import type { SceneManager } from '@/core/SceneManager';
 import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData } from '@/core/progress';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
-import type { RoughRenderer } from '@/rendering/RoughRenderer';
-import { drawSpaceBackground, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';import { STAGES } from '@/stages';
+import { drawSpaceBackground, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
+import { STAGES } from '@/stages';
 import type { MissionParams } from './sceneParams';
 
 type SelectStep = 'stage' | 'mode';
@@ -32,7 +32,7 @@ export class SelectScene implements Scene {
   private elapsed = 0;
   private stars: Star[] = makeStars(48);
 
-  constructor(manager: SceneManager, _rr: RoughRenderer) {
+  constructor(manager: SceneManager) {
     this.manager = manager;
     this.stars = makeStars(48);
   }

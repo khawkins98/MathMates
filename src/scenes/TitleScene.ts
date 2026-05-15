@@ -1,6 +1,5 @@
 import type { Scene } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
-import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { drawOutlinedText, drawControlsHintsBar } from '@/rendering/drawHelpers';
 
@@ -11,7 +10,7 @@ export class TitleScene implements Scene {
   private bgReady = false;
   private onBacktick: (e: KeyboardEvent) => void;
 
-  constructor(manager: SceneManager, _rr: RoughRenderer) {
+  constructor(manager: SceneManager) {
     this.manager = manager;
     this.bgImage = new Image();
     this.bgImage.onload = () => { this.bgReady = true; };

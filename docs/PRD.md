@@ -40,16 +40,20 @@ v2 makes two course corrections:
 
 ## 2. Visual Design Language
 
-### 2.1 Sketchy / hand-drawn aesthetic
+### 2.1 Aesthetic overview
 
-All game graphics are drawn programmatically using **Rough.js** on a Canvas 2D context. The library generates the characteristic wobbly outlines and hatch-fills that make shapes look hand-sketched. No bitmap sprites, no spritesheets, no pixel-art filters.
+The visual design has two distinct layers that use different rendering approaches:
 
-Design principles:
-- **Outlines are alive.** Grid cells, buttons, character bodies — everything has a slightly uneven stroke, as if traced freehand.
-- **Fills are textured.** Flat colour is replaced by cross-hatch or zigzag fills, lending a crayon-like warmth.
-- **Characters are simple.** Crewmates and the impostor are geometric shapes (rounded rectangle body, visor ellipse, stubby legs) drawn with Rough.js. Animate them by re-drawing each frame with a small random perturbation seed — the lines "wiggle" naturally.
-- **Palette is soft.** Avoid pure primaries. Use muted, slightly desaturated tones that read as "drawn with pencils" — dusty greens, warm reds, soft blues.
-- **Type is legible.** Use a friendly, rounded Google Font (e.g. [Caveat](https://fonts.google.com/specimen/Caveat) for display headings, a clean sans-serif for cell values where readability under time pressure matters). Never use a font so decorative that a 5-year-old struggles with a digit.
+**Game grid (Rough.js):** The playing field — cells, crewmate characters, the impostor — is rendered with [Rough.js](https://roughjs.com) on Canvas 2D. Wobbly outlines and hatch fills give it a hand-sketched, crayon-like warmth that is age-appropriate and technically simple.
+
+**UI screens (sci-fi console):** The title screen, mission select, briefing, and result screens use a dark terminal aesthetic — deep teal backgrounds, rounded panels, cyan neon highlights, and outlined pixel-style text. Fonts are *Press Start 2P* (for scores and labels) and *Fredoka One* (for body text). This creates visual contrast between "mission briefing" and "playing on the grid".
+
+See `docs/STYLE_GUIDE.md` for the full colour palette, `drawButton()` API, and canvas primitive reference.
+
+Design principles that span both layers:
+- **Characters are simple.** Crewmates are geometric shapes (rounded rectangle body, visor ellipse, stubby legs) drawn with Rough.js, animated by re-drawing with a slowly-incrementing seed so the outlines "wiggle".
+- **Type is legible.** Never use a font so decorative that a 5-year-old struggles with a digit.
+- **HiDPI aware.** Canvas backing store is scaled by `window.devicePixelRatio`; all scene code uses logical 600 × 440 coordinates.
 
 ### 2.2 Screen layout
 

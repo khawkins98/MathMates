@@ -2,7 +2,6 @@ import type { Scene } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
 import { CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
-import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import { drawSpaceBackground, drawOutlinedText, drawPanel, makeStars, type Star } from '@/rendering/drawHelpers';
 import { SCENARIO_REGISTRY } from '@/scenarios';
 import { STAGES } from '@/stages';
@@ -28,7 +27,7 @@ export class BriefingScene implements Scene {
   private started = false;
   private stars: Star[] = makeStars(50);
 
-  constructor(manager: SceneManager, _rr: RoughRenderer) {
+  constructor(manager: SceneManager) {
     this.manager = manager;
   }
 

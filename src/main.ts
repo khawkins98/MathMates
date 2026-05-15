@@ -55,13 +55,13 @@ async function startGame(): Promise<void> {
   const rr = new RoughRenderer(ctx!);
   const audio = new AudioManager();
 
-  manager.register('TITLE', new TitleScene(manager, rr));
-  manager.register('SELECT', new SelectScene(manager, rr));
+  manager.register('TITLE', new TitleScene(manager));
+  manager.register('SELECT', new SelectScene(manager));
   manager.register('UIKIT', new UIKitScene(manager, rr));
-  manager.register('BRIEFING', new BriefingScene(manager, rr));
+  manager.register('BRIEFING', new BriefingScene(manager));
   manager.register('GAME', new GameScene(manager, rr, audio));
-  manager.register('COMPLETE', new CompleteScene(manager, rr));
-  manager.register('GAME_OVER', new GameOverScene(manager, rr));
+  manager.register('COMPLETE', new CompleteScene(manager));
+  manager.register('GAME_OVER', new GameOverScene(manager));
 
   manager.goto('TITLE');
 

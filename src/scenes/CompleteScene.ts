@@ -1,7 +1,6 @@
 import { CANVAS_WIDTH } from '@/constants';
 import type { SceneManager } from '@/core/SceneManager';
 import { COLOURS } from '@/rendering/colours';
-import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import { drawSpaceBackground, drawButton, makeStars, type Star } from '@/rendering/drawHelpers';
 import type { Scene } from '@/types';
 import type { CompleteSceneParams } from './sceneParams';
@@ -23,7 +22,7 @@ export class CompleteScene implements Scene {
   private stars: Star[] = makeStars(50);
   private elapsed = 0;
 
-  constructor(manager: SceneManager, _rr: RoughRenderer) {
+  constructor(manager: SceneManager) {
     this.manager = manager;
   }
 
