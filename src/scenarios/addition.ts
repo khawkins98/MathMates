@@ -50,3 +50,15 @@ export const addition2 = makeAdditionScenario(
   2,
   'Great work! Now find every sum that equals 10 — the magic number!',
 );
+export const addition3 = makeAdditionScenario(
+  'addition-3',
+  15,
+  2,
+  'Now we go bigger — find every sum that equals 15! Keep counting on!',
+);
+export const addition4 = makeAdditionScenario(
+  'addition-4',
+  20,
+  3,
+  'The biggest challenge — find every sum that equals 20. You can do it!',
+);

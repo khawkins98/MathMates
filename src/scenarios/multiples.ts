@@ -71,3 +71,73 @@ export const multiples4 = makeMultiplesScenario(
   2,
   'Find every multiple of 4. Tricky — take your time and think it through!',
 );
+
+function makeMixedTablesScenario(
+  id: string,
+  targetMultiple: number,
+  distractorMultiples: number[],
+  maxVal: number,
+  ruleText: string,
+  brief: string,
+): ScenarioDefinition {
+  return {
+    id,
+    title: `Mixed Tables`,
+    topic: 'multiplication',
+    ruleText,
+    briefingText: brief,
+    ksYears: [2],
+    difficulty: 3,
+    parTime: 75,
+    generateGrid(seed) {
+      const correct: { display: string; numeric: number }[] = [];
+      const wrong: { display: string; numeric: number }[] = [];
+      for (let n = targetMultiple; n <= maxVal; n += targetMultiple) {
+        correct.push({ display: `${n}`, numeric: n });
+      }
+      for (const d of distractorMultiples) {
+        for (let n = d; n <= maxVal; n += d) {
+          if (n % targetMultiple !== 0) {
+            wrong.push({ display: `${n}`, numeric: n });
+          }
+        }
+      }
+      for (let n = 1; n <= maxVal; n += 1) {
+        const isTarget = n % targetMultiple === 0;
+        const isDistractor = distractorMultiples.some((d) => n % d === 0);
+        if (!isTarget && !isDistractor) {
+          wrong.push({ display: `${n}`, numeric: n });
+        }
+      }
+      return buildGrid(correct, wrong, 7, seed);
+    },
+    isCorrect(value) {
+      return value.numeric % targetMultiple === 0;
+    },
+  };
+}
+
+export const mixedTables1 = makeMixedTablesScenario(
+  'mixed-tables-1',
+  5,
+  [2, 10],
+  50,
+  'Find multiples of 5',
+  'Find every multiple of 5 — but watch out for the even numbers trying to trick you!',
+);
+export const mixedTables2 = makeMixedTablesScenario(
+  'mixed-tables-2',
+  2,
+  [5, 10],
+  40,
+  'Find multiples of 2',
+  'Find every multiple of 2 (even number) — multiples of 5 and 10 are lurking as traps!',
+);
+export const mixedTables3 = makeMixedTablesScenario(
+  'mixed-tables-3',
+  10,
+  [2, 5],
+  100,
+  'Find multiples of 10',
+  'Find every multiple of 10 — careful, multiples of 2 and 5 are trying to fool you!',
+);

@@ -49,3 +49,15 @@ export const subtraction2 = makeSubtractionScenario(
   2,
   'Now find every subtraction that gives you 7. Tricky — take your time!',
 );
+export const subtraction3 = makeSubtractionScenario(
+  'subtraction-3',
+  12,
+  2,
+  'Find every subtraction that gives you 12 — bigger numbers now!',
+);
+export const subtraction4 = makeSubtractionScenario(
+  'subtraction-4',
+  17,
+  3,
+  'The toughest yet — find every subtraction that gives you 17. Concentrate!',
+);
