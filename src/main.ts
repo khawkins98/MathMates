@@ -13,8 +13,9 @@ import { TitleScene } from '@/scenes/TitleScene';
 import { UIKitScene } from '@/scenes/UIKitScene';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-canvas.width = CANVAS_WIDTH;
-canvas.height = CANVAS_HEIGHT;
+const dpr = window.devicePixelRatio || 1;
+canvas.width = CANVAS_WIDTH * dpr;
+canvas.height = CANVAS_HEIGHT * dpr;
 
 function applyScale(): void {
   const aspect = CANVAS_WIDTH / CANVAS_HEIGHT;
@@ -39,6 +40,10 @@ const ctx = canvas.getContext('2d');
 if (!ctx) {
   throw new Error('Canvas 2D context not available');
 }
+// Scale all drawing commands to match the device pixel ratio so the canvas
+// is sharp on HiDPI / Retina displays. All scene drawing uses logical
+// CANVAS_WIDTH × CANVAS_HEIGHT coordinates — this scale is transparent to them.
+ctx.scale(dpr, dpr);
 
 async function startGame(): Promise<void> {
   await Promise.all([
