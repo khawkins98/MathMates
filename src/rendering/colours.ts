@@ -26,4 +26,6 @@ export const COLOURS = {
   SUCCESS: '#50e858',
   DANGER: '#e83030',
   GOLD: '#ffe458',
+  ORANGE: '#ff9858',
+  CYAN: '#7ee8fa',
 };

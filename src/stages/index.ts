@@ -1,3 +1,4 @@
+import { COLOURS } from '@/rendering/colours';
 import type { StageDefinition } from '@/types';
 
 export const STAGES: StageDefinition[] = [
@@ -6,7 +7,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Counting On',
     description: 'Find the right totals!',
     icon: '+',
-    iconColour: '#50e858',
+    iconColour: COLOURS.SUCCESS,
     scenarios: ['addition-1', 'addition-2'],
   },
   {
@@ -14,7 +15,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Adding to 20',
     description: 'Bigger sums — all the way to 20!',
     icon: '+20',
-    iconColour: '#50e858',
+    iconColour: COLOURS.SUCCESS,
     scenarios: ['addition-3', 'addition-4'],
   },
   {
@@ -22,7 +23,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Taking Away',
     description: 'Find the right differences!',
     icon: '−',
-    iconColour: '#ff9858',
+    iconColour: COLOURS.ORANGE,
     scenarios: ['subtraction-1', 'subtraction-2'],
   },
   {
@@ -30,7 +31,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Taking from 20',
     description: 'Bigger differences — up to 20!',
     icon: '−20',
-    iconColour: '#ff9858',
+    iconColour: COLOURS.ORANGE,
     scenarios: ['subtraction-3', 'subtraction-4'],
   },
   {
@@ -38,7 +39,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Twos & Evens',
     description: 'Spot the even numbers!',
     icon: 'x2',
-    iconColour: '#ffe458',
+    iconColour: COLOURS.GOLD,
     scenarios: ['multiples-2'],
   },
   {
@@ -46,7 +47,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Fives and Tens',
     description: 'Count in fives and tens!',
     icon: 'x5',
-    iconColour: '#ffe458',
+    iconColour: COLOURS.GOLD,
     scenarios: ['multiples-5', 'multiples-10'],
   },
   {
@@ -54,7 +55,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Threes and Fours',
     description: 'The trickier times tables!',
     icon: 'x3',
-    iconColour: '#ffe458',
+    iconColour: COLOURS.GOLD,
     scenarios: ['multiples-3', 'multiples-4'],
   },
   {
@@ -62,7 +63,7 @@ export const STAGES: StageDefinition[] = [
     title: 'Mixed Tables',
     description: 'All mixed up — stay sharp!',
     icon: 'x?',
-    iconColour: '#7ee8fa',
+    iconColour: COLOURS.CYAN,
     scenarios: ['mixed-tables-1', 'mixed-tables-2', 'mixed-tables-3'],
   },
 ];
