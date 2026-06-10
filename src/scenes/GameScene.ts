@@ -726,6 +726,28 @@ export class GameScene implements Scene {
         this.wanderer.draw(this.rr, this.grid, this.elapsedMs);
       }
       if (this.mission?.mode === 'impostor') {
+        // Each crewmate projects a visible danger zone: break a cell inside
+        // it and you are SEEN. The rule is on the board, not in the manual.
+        const wrapped = (a: number, b: number, size: number): number => {
+          const d = Math.abs(a - b);
+          return Math.min(d, size - d);
+        };
+        const pulse = 0.10 + 0.05 * Math.sin(this.elapsedMs * 0.005);
+        ctx.save();
+        for (let col = 0; col < GRID_COLS; col += 1) {
+          for (let row = 0; row < GRID_ROWS; row += 1) {
+            const watched = this.crewmates.some(
+              (c) => c.alive && wrapped(c.col, col, GRID_COLS) + wrapped(c.row, row, GRID_ROWS) <= 2,
+            );
+            if (watched) {
+              const pos = this.grid.cellScreenPos(col, row);
+              ctx.fillStyle = `rgba(232, 48, 48, ${pulse})`;
+              ctx.fillRect(pos.x, pos.y, CELL_SIZE, CELL_SIZE);
+            }
+          }
+        }
+        ctx.restore();
+
         for (const crewmate of this.crewmates) {
           crewmate.draw(this.rr, this.grid);
         }

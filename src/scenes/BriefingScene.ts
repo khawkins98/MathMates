@@ -21,7 +21,7 @@ const CARD_W = 168;
 const CARD_H = 46;
 const CARD_Y = 286;
 
-const IMPOSTOR_BODY = 'You are the impostor! Break every wrong answer — and eject crewmates by eating the cell they stand on!';
+const IMPOSTOR_BODY = 'You are the impostor! Break every wrong answer, but stay out of the red glow — that is where crewmates can SEE you. Eat the cell a crewmate stands on to eject them!';
 
 /**
  * Mission briefing. No countdown — emergent readers take the time they need,
