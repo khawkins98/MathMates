@@ -21,7 +21,7 @@ const CARD_W = 168;
 const CARD_H = 46;
 const CARD_Y = 286;
 
-const IMPOSTOR_BODY = 'You are the impostor! Break every wrong answer, but stay out of the red glow — that is where crewmates can SEE you. Eat the cell a crewmate stands on to eject them!';
+const IMPOSTOR_BODY = 'Break the wrong answers — but stay out of the red glow, or you will be SEEN!';
 
 /**
  * Mission briefing. No countdown — emergent readers take the time they need,
@@ -58,7 +58,9 @@ export class BriefingScene implements Scene {
     this.scenario = scenario;
     this.started = false;
     this.elapsed = 0;
-    this.trickyFacts = getRecentMisses(2);
+    // Warm-up cards only in crew mode — the impostor briefing already asks
+    // for a rule inversion; don't stack a second cognitive load on top.
+    this.trickyFacts = params.mode === 'crew' ? getRecentMisses(2) : [];
     this.revealed = this.trickyFacts.map(() => false);
     this.manager.input.setEnabled(true);
   }
