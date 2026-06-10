@@ -1,3 +1,4 @@
+import { GRID_COLS, GRID_ROWS } from '@/constants';
 import type { CellValue } from '@/types';
 
 export function seededRng(seed: number): () => number {
@@ -35,6 +36,9 @@ function uniqueValues(values: CellValue[]): CellValue[] {
 
 function pickAmount(values: CellValue[], amount: number, rng: () => number): CellValue[] {
   const unique = uniqueValues(values);
+  if (unique.length === 0 && amount > 0) {
+    throw new Error('pickAmount: scenario generated an empty value pool — the grid would be unplayable');
+  }
   const shuffled = shuffle(unique, rng);
   if (shuffled.length >= amount) {
     return shuffled.slice(0, amount);
@@ -55,6 +59,6 @@ export function buildGrid(
 ): CellValue[] {
   const rng = seededRng(seed ?? Math.floor(Math.random() * 9999));
   const correct = pickAmount(correctValues, correctCount, rng);
-  const wrong = pickAmount(wrongValues, 20 - correctCount, rng);
+  const wrong = pickAmount(wrongValues, GRID_COLS * GRID_ROWS - correctCount, rng);
   return shuffle([...correct, ...wrong], rng);
 }

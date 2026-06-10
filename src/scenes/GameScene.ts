@@ -13,18 +13,7 @@ import { SCENARIO_REGISTRY } from '@/scenarios';
 import { STAGES } from '@/stages';
 import type { Scene, ScenarioDefinition, StageDefinition } from '@/types';
 import { HUD } from '@/ui/HUD';
-import type { CompleteSceneParams, GameOverSceneParams, MissionParams } from './sceneParams';
-
-function isMissionParams(value: unknown): value is MissionParams {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-  const candidate = value as Partial<MissionParams>;
-  return typeof candidate.stageId === 'string'
-    && typeof candidate.stageIndex === 'number'
-    && typeof candidate.scenarioIndex === 'number'
-    && (candidate.mode === 'crew' || candidate.mode === 'impostor');
-}
+import { isMissionParams, makeMissionSeed, type CompleteSceneParams, type GameOverSceneParams, type MissionParams } from './sceneParams';
 
 function multiplierForStreak(streak: number): number {
   if (streak >= 9) {
@@ -142,7 +131,7 @@ export class GameScene implements Scene {
           this.manager.goto('SELECT');
           return;
         }
-        if (action === 'eat' || action === 'confirm') {
+        if (action === 'eat') {
           this.paused = false;
         }
         action = this.manager.input.shift();
@@ -162,7 +151,6 @@ export class GameScene implements Scene {
           this.grid.toggleSus(this.player.col, this.player.row);
           break;
         case 'eat':
-        case 'confirm':
           if (this.eatLockMs <= 0) {
             this.handleEat();
           }
@@ -354,7 +342,7 @@ export class GameScene implements Scene {
       return {
         ...this.mission,
         scenarioIndex: this.mission.scenarioIndex + 1,
-        seed: Date.now() % 1000000,
+        seed: makeMissionSeed(),
       };
     }
 
@@ -365,7 +353,7 @@ export class GameScene implements Scene {
         stageIndex: this.mission.stageIndex,
         scenarioIndex: 0,
         mode: 'impostor',
-        seed: Date.now() % 1000000,
+        seed: makeMissionSeed(),
       };
     }
 
@@ -377,7 +365,7 @@ export class GameScene implements Scene {
         stageIndex: this.mission.stageIndex + 1,
         scenarioIndex: 0,
         mode: this.mission.mode,
-        seed: Date.now() % 1000000,
+        seed: makeMissionSeed(),
       };
     }
 
@@ -406,7 +394,7 @@ export class GameScene implements Scene {
     const gameOverParams: GameOverSceneParams = {
       retryMission: {
         ...this.mission,
-        seed: Date.now() % 1000000,
+        seed: makeMissionSeed(),
       },
       stageTitle: this.stage.title,
       scenarioTitle: this.scenario.title,

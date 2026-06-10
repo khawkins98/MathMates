@@ -1,6 +1,6 @@
 export type GameMode = 'crew' | 'impostor';
 
-export type CellState = 'normal' | 'highlighted' | 'consumed' | 'broken' | 'sus' | 'correct_flash' | 'error_flash';
+export type CellState = 'normal' | 'highlighted' | 'consumed' | 'broken' | 'correct_flash' | 'error_flash';
 
 export interface CellValue {
   display: string;

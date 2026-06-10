@@ -22,6 +22,12 @@
 
 All hex values are canvas-draw colours (exact); use `COLOURS.*` constants from `src/rendering/colours.ts`.
 
+> **Naming note:** the tables below use spec-level role names. The code's
+> palette constants live in `src/rendering/colours.ts` and use shorter names
+> (e.g. `BG_SPACE` → `COLOURS.BG`, `CELL_DEFAULT` → `COLOURS.CELL_NORMAL`,
+> `OUTLINE` → the `'#080c0c'` stroke passed to RoughRenderer). When adding
+> colours, add a constant to `colours.ts` — do not hardcode hex in scenes.
+
 ### 2.1 Background & Surfaces
 
 | Role | Hex | Usage |
@@ -313,7 +319,7 @@ A dev-only scene showing all UI primitives in one view:
 
 - **Access:** press `` ` `` (backtick) on the title screen
 - **Exit:** `Esc` / `Z` / `Backspace`
-- **Scene name:** `'UIKIT'` — registered in `main.ts`, never reachable from gameplay
+- **Scene name:** `'UIKIT'` — registered in `main.ts` only when `import.meta.env.DEV` is true, so it is excluded from production builds
 
 The UIKit shows: typography scale, colour swatches, tile variants (normal/selected), drawButton states, drawPanel, animated crewmate sprites, and the controls hints bar.
 

@@ -16,7 +16,7 @@ export class TitleScene implements Scene {
     this.bgImage.onload = () => { this.bgReady = true; };
     this.bgImage.src = `${import.meta.env.BASE_URL}bg-title.jpg`;
     this.onBacktick = (e: KeyboardEvent) => {
-      if (e.code === 'Backquote') {
+      if (import.meta.env.DEV && e.code === 'Backquote') {
         e.preventDefault();
         this.manager.goto('UIKIT');
       }
@@ -37,7 +37,7 @@ export class TitleScene implements Scene {
     this.elapsed += dt;
     let action = this.manager.input.shift();
     while (action) {
-      if (action === 'eat' || action === 'confirm') {
+      if (action === 'eat') {
         this.manager.goto('SELECT');
         return;
       }

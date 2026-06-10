@@ -1,4 +1,4 @@
-import { GRID_COLS, GRID_ROWS } from '@/constants';
+import { CELL_SPRITE_ANCHOR_Y, CELL_SPRITE_CENTER_X, GRID_COLS, GRID_ROWS } from '@/constants';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import type { Grid } from './Grid';
 
@@ -46,6 +46,6 @@ export class Player {
     const bob = Math.sin(this.bobTimer * 0.004) * 2;
     const seed = Math.floor(this.bobTimer / 250);
     // Anchored low in the cell so the expression text above stays readable.
-    rr.crewmate(x + 40, y + 52 + bob, colour, seed, 0.9);
+    rr.crewmate(x + CELL_SPRITE_CENTER_X, y + CELL_SPRITE_ANCHOR_Y + bob, colour, seed, 0.9);
   }
 }

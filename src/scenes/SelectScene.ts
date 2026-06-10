@@ -3,10 +3,10 @@ import type { SceneManager } from '@/core/SceneManager';
 import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData } from '@/core/progress';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
-import { RoughRenderer } from '@/rendering/RoughRenderer';
+import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import { drawSpaceBackground, fitText, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
 import { STAGES } from '@/stages';
-import type { MissionParams } from './sceneParams';
+import { makeMissionSeed, type MissionParams } from './sceneParams';
 
 type SelectStep = 'stage' | 'mode';
 
@@ -32,11 +32,11 @@ export class SelectScene implements Scene {
   private selectedModeIndex = 0; // 0 = crew, 1 = impostor
   private elapsed = 0;
   private stars: Star[] = makeStars(48);
-  private rr: RoughRenderer | null = null;
+  private rr: RoughRenderer;
 
-  constructor(manager: SceneManager) {
+  constructor(manager: SceneManager, rr: RoughRenderer) {
     this.manager = manager;
-    this.stars = makeStars(48);
+    this.rr = rr;
   }
 
   enter(_params?: Record<string, unknown>): void {
@@ -73,7 +73,6 @@ export class SelectScene implements Scene {
             this.manager.goto('TITLE');
             return;
           case 'eat':
-          case 'confirm':
             this.step = 'mode';
             this.selectedModeIndex = 0;
             break;
@@ -96,8 +95,7 @@ export class SelectScene implements Scene {
           case 'pause':
             this.step = 'stage';
             break;
-          case 'eat':
-          case 'confirm': {
+          case 'eat': {
             const mode: GameMode = this.selectedModeIndex === 0 ? 'crew' : 'impostor';
             const stage = STAGES[this.selectedStageIndex];
             const params: MissionParams = {
@@ -105,7 +103,7 @@ export class SelectScene implements Scene {
               stageIndex: this.selectedStageIndex,
               scenarioIndex: getNextScenarioIndex(stage.id, mode, this.progress),
               mode,
-              seed: Date.now() % 1000000,
+              seed: makeMissionSeed(),
             };
             this.manager.goto('BRIEFING', params as unknown as Record<string, unknown>);
             return;
@@ -119,9 +117,6 @@ export class SelectScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    if (!this.rr) {
-      this.rr = new RoughRenderer(ctx);
-    }
     drawSpaceBackground(ctx, this.elapsed, this.stars);
     if (this.step === 'stage') {
       this.drawStageSelect(ctx);
@@ -302,10 +297,8 @@ export class SelectScene implements Scene {
     ctx.fillText(desc1, x + MODE_W / 2, y + 88);
     ctx.fillText(desc2, x + MODE_W / 2, y + 108);
 
-    if (this.rr) {
-      const bob = selected ? Math.sin(this.elapsed * 0.004) * 2 : 0;
-      this.rr.crewmate(x + MODE_W / 2, y + 134 + bob, accent, 3, 0.7);
-    }
+    const bob = selected ? Math.sin(this.elapsed * 0.004) * 2 : 0;
+    this.rr.crewmate(x + MODE_W / 2, y + 134 + bob, accent, 3, 0.7);
 
     ctx.font = "12px 'Fredoka One', sans-serif";
     ctx.fillStyle = progress.completed ? COLOURS.SUCCESS : selected ? '#0a3a4a' : accent;

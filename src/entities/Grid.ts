@@ -44,6 +44,9 @@ export class Grid {
   }
 
   private getIndex(col: number, row: number): number {
+    if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
+      return -1;
+    }
     return row * GRID_COLS + col;
   }
 

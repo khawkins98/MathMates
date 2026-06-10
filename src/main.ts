@@ -56,12 +56,16 @@ async function startGame(): Promise<void> {
   const audio = new AudioManager();
 
   manager.register('TITLE', new TitleScene(manager));
-  manager.register('SELECT', new SelectScene(manager));
-  manager.register('UIKIT', new UIKitScene(manager, rr));
+  manager.register('SELECT', new SelectScene(manager, rr));
   manager.register('BRIEFING', new BriefingScene(manager));
   manager.register('GAME', new GameScene(manager, rr, audio));
-  manager.register('COMPLETE', new CompleteScene(manager));
+  manager.register('COMPLETE', new CompleteScene(manager, rr));
   manager.register('GAME_OVER', new GameOverScene(manager));
+
+  if (import.meta.env.DEV) {
+    // Dev-only component viewer — backtick on the title screen opens it.
+    manager.register('UIKIT', new UIKitScene(manager, rr));
+  }
 
   manager.goto('TITLE');
 

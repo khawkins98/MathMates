@@ -51,9 +51,6 @@ export class AudioManager {
     this.tone(300, 0.2, 'triangle', 0.3);
   }
 
-  move(): void {
-    // Intentionally quiet.
-  }
 
   sabotageEat(): void {
     this.tone(440, 0.1, 'sawtooth', 0.2);
