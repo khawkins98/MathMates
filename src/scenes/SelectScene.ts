@@ -21,7 +21,7 @@ const MODE_W = 232;
 const MODE_H = 174;
 const MODE_LEFT_X = 62;
 const MODE_RIGHT_X = 306;
-const MODE_Y = 90;
+const MODE_Y = 122;
 
 export class SelectScene implements Scene {
   private manager: SceneManager;
@@ -228,7 +228,7 @@ export class SelectScene implements Scene {
     ctx.fillStyle = '#7aa8a8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('How do you want to play?', CANVAS_WIDTH / 2, 66);
+    ctx.fillText('How do you want to play?', CANVAS_WIDTH / 2, 88);
     ctx.restore();
 
     this.drawModeTile(ctx, 'crew', MODE_LEFT_X, MODE_Y);
