@@ -1,6 +1,7 @@
 import { CANVAS_WIDTH } from '@/constants';
 import type { SceneManager } from '@/core/SceneManager';
 import { COLOURS } from '@/rendering/colours';
+import { RoughRenderer } from '@/rendering/RoughRenderer';
 import { drawSpaceBackground, drawButton, makeStars, type Star } from '@/rendering/drawHelpers';
 import type { Scene } from '@/types';
 import type { CompleteSceneParams } from './sceneParams';
@@ -21,6 +22,7 @@ export class CompleteScene implements Scene {
   private selectedButton = 0;
   private stars: Star[] = makeStars(50);
   private elapsed = 0;
+  private rr: RoughRenderer | null = null;
 
   constructor(manager: SceneManager) {
     this.manager = manager;
@@ -74,6 +76,9 @@ export class CompleteScene implements Scene {
     const accent = result?.mode === 'impostor' ? COLOURS.DANGER : COLOURS.SUCCESS;
     const panelFill = result?.mode === 'impostor' ? '#3a1020' : '#1a3828';
 
+    if (!this.rr) {
+      this.rr = new RoughRenderer(ctx);
+    }
     drawSpaceBackground(ctx, this.elapsed, this.stars);
 
     const panelX = 58, panelY = 36, panelW = 484, panelH = 298;
@@ -117,6 +122,17 @@ export class CompleteScene implements Scene {
       ctx.fillText('Par time bonus +50!', CANVAS_WIDTH / 2, 276);
     }
     ctx.restore();
+
+    // Celebrating crew bouncing in the space below the stats
+    if (this.rr) {
+      const colours = result?.mode === 'impostor'
+        ? [COLOURS.PLAYER_IMPOSTOR, COLOURS.AI_CREW_1, COLOURS.PLAYER_IMPOSTOR]
+        : [COLOURS.PLAYER_CREW, COLOURS.AI_CREW_1, COLOURS.AI_CREW_2];
+      for (let i = 0; i < colours.length; i += 1) {
+        const hop = Math.abs(Math.sin(this.elapsed * 0.005 + i * 1.1)) * 8;
+        this.rr.crewmate(CANVAS_WIDTH / 2 + (i - 1) * 56, 306 - hop, colours[i], i + 2, 0.62);
+      }
+    }
 
     const nextEnabled = Boolean(result?.nextMission);
     if (!nextEnabled) {
