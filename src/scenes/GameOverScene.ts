@@ -40,6 +40,21 @@ export class GameOverScene implements Scene {
 
   update(dt: number): void {
     this.elapsed += dt;
+    let tap = this.manager.input.shiftTap();
+    while (tap) {
+      const { x, y } = tap;
+      if (y >= 338 && y <= 386) {
+        if (x >= 126 && x <= 276 && this.result) {
+          this.manager.goto('BRIEFING', this.result.retryMission as unknown as Record<string, unknown>);
+          return;
+        }
+        if (x >= 324 && x <= 474) {
+          this.manager.goto('SELECT');
+          return;
+        }
+      }
+      tap = this.manager.input.shiftTap();
+    }
     let action = this.manager.input.shift();
     while (action) {
       switch (action) {
