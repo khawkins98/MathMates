@@ -9,7 +9,7 @@ export class InputManager {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (!this.enabled) {
+    if (!this.enabled || e.repeat) {
       return;
     }
     const action = this.keyToAction(e.code);
