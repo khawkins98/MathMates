@@ -14,6 +14,9 @@ export class HUD {
   private ruleText = '';
   private impostorMode = false;
   private elapsed = 0;
+  private o2 = 1;
+  private suspicion = -1;
+  private suspicionMax = 5;
 
   setScore(score: number): void {
     this.score = score;
@@ -40,6 +43,17 @@ export class HUD {
 
   setImpostorMode(on: boolean): void {
     this.impostorMode = on;
+  }
+
+  /** 0..1 oxygen remaining (the visible par timer). */
+  setO2(fraction: number): void {
+    this.o2 = Math.max(0, Math.min(1, fraction));
+  }
+
+  /** Current suspicion notches; pass -1 to hide (crew mode). */
+  setSuspicion(level: number, max: number): void {
+    this.suspicion = level;
+    this.suspicionMax = max;
   }
 
   update(dt: number): void {
@@ -76,10 +90,10 @@ export class HUD {
     ctx.textAlign = 'left';
     fitText(ctx, this.ruleText, 132, 56, CANVAS_WIDTH - 132 - 60, 14, "'Fredoka One', sans-serif", 11);
 
-    // Score (right side)
+    // Score (right side) — cockpit-console orange, echoing the title art
     ctx.textAlign = 'right';
     ctx.font = "16px 'Press Start 2P', monospace";
-    ctx.fillStyle = COLOURS.GOLD;
+    ctx.fillStyle = COLOURS.ORANGE;
     ctx.fillText(`${this.score}`, CANVAS_WIDTH - 10, 16);
     if (this.multiplier > 1) {
       ctx.font = "10px 'Press Start 2P', monospace";
@@ -104,6 +118,43 @@ export class HUD {
     ctx.fillStyle = COLOURS.TEXT_HUD;
     ctx.textAlign = 'center';
     ctx.fillText(`${this.progressCurrent}/${this.progressTotal}`, CANVAS_WIDTH / 2, barY + barHeight + 10);
+
+    // O2 bar (visible par timer): bonus air, never lethal. Pulses when low.
+    const o2W = 70;
+    const o2X = CANVAS_WIDTH - 10 - o2W;
+    const o2Y = 44;
+    ctx.font = "10px 'Fredoka One', sans-serif";
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#9ab8b8';
+    ctx.fillText('O2', o2X - 5, o2Y + 4);
+    ctx.fillStyle = '#1a3030';
+    ctx.fillRect(o2X, o2Y, o2W, 7);
+    const lowPulse = this.o2 > 0 && this.o2 < 0.25 ? 0.6 + 0.4 * Math.sin(this.elapsed * 0.01) : 1;
+    ctx.globalAlpha = lowPulse;
+    ctx.fillStyle = this.o2 < 0.25 ? COLOURS.ORANGE : COLOURS.CYAN;
+    ctx.fillRect(o2X, o2Y, o2W * this.o2, 7);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#2a5050';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(o2X, o2Y, o2W, 7);
+
+    // Suspicion pips (impostor mode): how close the crew is to calling a meeting
+    if (this.suspicion >= 0) {
+      const pipY = 60;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#9ab8b8';
+      ctx.fillText('SUS', o2X - 5, pipY + 4);
+      for (let i = 0; i < this.suspicionMax; i += 1) {
+        const px = o2X + i * 15 + 5;
+        ctx.beginPath();
+        ctx.arc(px, pipY + 3, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = i < this.suspicion ? COLOURS.DANGER : '#2a3c3c';
+        ctx.fill();
+        ctx.strokeStyle = '#4a6060';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
 
     // Lives — small crewmate icons
     const lifeScale = 0.42;

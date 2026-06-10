@@ -8,6 +8,8 @@ export interface ModeProgress {
   completed: boolean;
   bestScore: number;
   bestTimeMs: number | null;
+  /** Best badge rating (0-3) earned per scenario index. */
+  badges: number[];
 }
 
 interface StageProgress {
@@ -25,6 +27,7 @@ function makeModeProgress(): ModeProgress {
     completed: false,
     bestScore: 0,
     bestTimeMs: null,
+    badges: [],
   };
 }
 
@@ -49,6 +52,9 @@ function sanitizeModeProgress(value: Partial<ModeProgress> | undefined): ModePro
     completed: Boolean(value?.completed),
     bestScore: Math.max(0, Math.floor(finiteOr(value?.bestScore, 0))),
     bestTimeMs: typeof value?.bestTimeMs === 'number' && Number.isFinite(value.bestTimeMs) ? value.bestTimeMs : null,
+    badges: Array.isArray(value?.badges)
+      ? value.badges.map((b) => (typeof b === 'number' && Number.isFinite(b) ? Math.max(0, Math.min(3, Math.floor(b))) : 0))
+      : [],
   };
 }
 
@@ -108,6 +114,7 @@ export function recordStageResult(
   scenarioIndex: number,
   score: number,
   timeMs: number,
+  badges = 0,
 ): { stageJustCompleted: boolean } {
   const progress = getProgress();
   const stageIndex = STAGES.findIndex((stage) => stage.id === stageId);
@@ -123,6 +130,7 @@ export function recordStageResult(
   modeProgress.completed = modeProgress.completedScenarios >= stage.scenarios.length;
   modeProgress.bestScore = Math.max(modeProgress.bestScore, score);
   modeProgress.bestTimeMs = modeProgress.bestTimeMs === null ? timeMs : Math.min(modeProgress.bestTimeMs, timeMs);
+  modeProgress.badges[scenarioIndex] = Math.max(modeProgress.badges[scenarioIndex] ?? 0, Math.max(0, Math.min(3, badges)));
 
   saveProgress(progress);
 

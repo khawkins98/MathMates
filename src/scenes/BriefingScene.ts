@@ -1,20 +1,42 @@
 import type { Scene } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
 import { CANVAS_WIDTH } from '@/constants';
+import { getRecentMisses, type MissEntry } from '@/core/misses';
 import { COLOURS } from '@/rendering/colours';
-import { drawSpaceBackground, drawOutlinedText, drawPanel, makeStars, type Star } from '@/rendering/drawHelpers';
+import { drawSpaceBackground, drawButton, drawOutlinedText, drawPanel, makeStars, type Star } from '@/rendering/drawHelpers';
 import { SCENARIO_REGISTRY } from '@/scenarios';
 import { STAGES } from '@/stages';
 import type { GameMode, ScenarioDefinition } from '@/types';
 import { isMissionParams, type MissionParams } from './sceneParams';
 
+// Layout
+const GO_X = (CANVAS_WIDTH - 200) / 2;
+const GO_Y = 368;
+const GO_W = 200;
+const GO_H = 48;
+const SPEAKER_X = 516;
+const SPEAKER_Y = 58;
+const SPEAKER_SIZE = 34;
+const CARD_W = 168;
+const CARD_H = 46;
+const CARD_Y = 286;
+
+const IMPOSTOR_BODY = 'You are the impostor! Break every wrong answer — and eject crewmates by eating the cell they stand on!';
+
+/**
+ * Mission briefing. No countdown — emergent readers take the time they need,
+ * a speaker button reads the briefing aloud, and recently-missed facts come
+ * back as warm-up cards (tap to reveal the answer) before the round starts.
+ */
 export class BriefingScene implements Scene {
   private manager: SceneManager;
   private mission: MissionParams | null = null;
   private scenario: ScenarioDefinition | null = null;
-  private countdownMs = 3000;
   private started = false;
   private stars: Star[] = makeStars(50);
+  private elapsed = 0;
+  private trickyFacts: MissEntry[] = [];
+  private revealed: boolean[] = [];
 
   constructor(manager: SceneManager) {
     this.manager = manager;
@@ -34,21 +56,34 @@ export class BriefingScene implements Scene {
     }
     this.mission = { ...params };
     this.scenario = scenario;
-    this.countdownMs = 3000;
     this.started = false;
+    this.elapsed = 0;
+    this.trickyFacts = getRecentMisses(2);
+    this.revealed = this.trickyFacts.map(() => false);
     this.manager.input.setEnabled(true);
   }
 
-  exit(): void {}
+  exit(): void {
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      // Speech is best-effort everywhere.
+    }
+  }
 
   update(dt: number): void {
+    this.elapsed += dt;
     if (!this.mission || !this.scenario || this.started) {
       return;
     }
 
-    if (this.manager.input.shiftTap()) {
-      this.startMission();
-      return;
+    let tap = this.manager.input.shiftTap();
+    while (tap) {
+      this.handleTap(tap.x, tap.y);
+      if (this.started) {
+        return;
+      }
+      tap = this.manager.input.shiftTap();
     }
 
     let action = this.manager.input.shift();
@@ -63,10 +98,46 @@ export class BriefingScene implements Scene {
       }
       action = this.manager.input.shift();
     }
+  }
 
-    this.countdownMs -= dt;
-    if (this.countdownMs <= 0) {
-      this.startMission();
+  private handleTap(x: number, y: number): void {
+    // Speaker: read the briefing aloud
+    if (x >= SPEAKER_X && x <= SPEAKER_X + SPEAKER_SIZE && y >= SPEAKER_Y && y <= SPEAKER_Y + SPEAKER_SIZE) {
+      this.speak();
+      return;
+    }
+    // Tricky-fact cards: tap to reveal the answer
+    for (let i = 0; i < this.trickyFacts.length; i += 1) {
+      const cardX = this.cardX(i);
+      if (x >= cardX && x <= cardX + CARD_W && y >= CARD_Y && y <= CARD_Y + CARD_H) {
+        this.revealed[i] = true;
+        return;
+      }
+    }
+    this.startMission();
+  }
+
+  private cardX(index: number): number {
+    const total = this.trickyFacts.length * CARD_W + (this.trickyFacts.length - 1) * 16;
+    return (CANVAS_WIDTH - total) / 2 + index * (CARD_W + 16);
+  }
+
+  private speak(): void {
+    if (!this.scenario || !this.mission) {
+      return;
+    }
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) {
+        return;
+      }
+      synth.cancel();
+      const body = this.mission.mode === 'impostor' ? IMPOSTOR_BODY : this.scenario.briefingText;
+      const utterance = new SpeechSynthesisUtterance(`${this.scenario.title}. ${body}`);
+      utterance.rate = 0.9;
+      synth.speak(utterance);
+    } catch {
+      // Speech is best-effort everywhere.
     }
   }
 
@@ -86,8 +157,8 @@ export class BriefingScene implements Scene {
     const accent = mode === 'crew' ? COLOURS.SUCCESS : COLOURS.DANGER;
     const panelFill = mode === 'crew' ? '#1a3840' : '#3a1828';
 
-    drawSpaceBackground(ctx, 3000 - this.countdownMs, this.stars);
-    drawPanel(ctx, 38, 44, 524, 310, panelFill, accent, 3);
+    drawSpaceBackground(ctx, this.elapsed, this.stars);
+    drawPanel(ctx, 38, 44, 524, 300, panelFill, accent, 3);
 
     ctx.save();
     ctx.textAlign = 'center';
@@ -99,45 +170,71 @@ export class BriefingScene implements Scene {
     ctx.fillText(mode === 'crew' ? 'CREW BRIEFING' : 'IMPOSTOR BRIEFING', CANVAS_WIDTH / 2, 76);
 
     // Stage title
-    drawOutlinedText(ctx, stage ? stage.title : 'Mission', CANVAS_WIDTH / 2, 118, 24, '#f0fafa', '#080c0c', 5, "'Fredoka One', sans-serif");
+    drawOutlinedText(ctx, stage ? stage.title : 'Mission', CANVAS_WIDTH / 2, 116, 24, '#f0fafa', '#080c0c', 5, "'Fredoka One', sans-serif");
 
     // Scenario title
     ctx.font = "20px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#f0fafa';
-    ctx.fillText(scenario?.title ?? '', CANVAS_WIDTH / 2, 155);
+    ctx.fillText(scenario?.title ?? '', CANVAS_WIDTH / 2, 150);
 
     // Rule text
+    const ruleLine = mode === 'impostor' ? scenario?.impostorRuleText : scenario?.ruleText;
     ctx.font = "17px 'Fredoka One', sans-serif";
     ctx.fillStyle = accent;
-    const ruleLine = mode === 'impostor' ? scenario?.impostorRuleText : scenario?.ruleText;
-    ctx.fillText(ruleLine ?? '', CANVAS_WIDTH / 2, 188);
+    ctx.fillText(ruleLine ?? '', CANVAS_WIDTH / 2, 180);
 
     // Briefing text (wrapped)
-    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.font = "15px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#c8e0e0';
-    const body = mode === 'impostor'
-      ? 'You are the impostor! Break every wrong answer — and eject crewmates by eating the cell they stand on!'
-      : scenario?.briefingText ?? '';
-    this.drawWrappedText(ctx, body, CANVAS_WIDTH / 2, 232, 440, 26);
+    const body = mode === 'impostor' ? IMPOSTOR_BODY : scenario?.briefingText ?? '';
+    this.drawWrappedText(ctx, body, CANVAS_WIDTH / 2, 216, 440, 24);
 
-    // Hint
-    ctx.font = "12px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#7aa8a8';
-    ctx.fillText('Space/Enter starts early  •  Backspace returns to stage select', CANVAS_WIDTH / 2, 322);
+    // Tricky-ones warm-up cards
+    if (this.trickyFacts.length > 0) {
+      ctx.font = "12px 'Fredoka One', sans-serif";
+      ctx.fillStyle = '#9ab8b8';
+      ctx.fillText('Tricky ones from last time — tap to check:', CANVAS_WIDTH / 2, CARD_Y - 14);
+      for (let i = 0; i < this.trickyFacts.length; i += 1) {
+        const fact = this.trickyFacts[i];
+        const cardX = this.cardX(i);
+        ctx.fillStyle = 'rgba(0, 10, 14, 0.6)';
+        ctx.fillRect(cardX, CARD_Y, CARD_W, CARD_H);
+        ctx.strokeStyle = COLOURS.GOLD;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(cardX, CARD_Y, CARD_W, CARD_H);
+        ctx.font = "16px 'Fredoka One', sans-serif";
+        ctx.fillStyle = this.revealed[i] ? COLOURS.GOLD : '#f0fafa';
+        const isBare = !fact.display.includes('+') && !fact.display.includes('−');
+        const text = this.revealed[i]
+          ? (isBare ? `${fact.display} ✓` : `${fact.display} = ${fact.numeric}`)
+          : (isBare ? `${fact.display} ?` : `${fact.display} = ?`);
+        ctx.fillText(text, cardX + CARD_W / 2, CARD_Y + CARD_H / 2);
+      }
+    }
 
-    // Countdown arc
-    const seconds = Math.max(0, Math.ceil(this.countdownMs / 1000));
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
+    // Speaker button — reads the briefing aloud
+    ctx.strokeStyle = '#7aa8a8';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(SPEAKER_X, SPEAKER_Y, SPEAKER_SIZE, SPEAKER_SIZE);
+    ctx.fillStyle = '#c8e0e0';
     ctx.beginPath();
-    ctx.arc(CANVAS_WIDTH / 2, 373, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.countdownMs / 3000));
+    ctx.moveTo(SPEAKER_X + 9, SPEAKER_Y + 14);
+    ctx.lineTo(SPEAKER_X + 14, SPEAKER_Y + 14);
+    ctx.lineTo(SPEAKER_X + 20, SPEAKER_Y + 8);
+    ctx.lineTo(SPEAKER_X + 20, SPEAKER_Y + 26);
+    ctx.lineTo(SPEAKER_X + 14, SPEAKER_Y + 20);
+    ctx.lineTo(SPEAKER_X + 9, SPEAKER_Y + 20);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#c8e0e0';
+    ctx.beginPath();
+    ctx.arc(SPEAKER_X + 22, SPEAKER_Y + 17, 6, -Math.PI / 3, Math.PI / 3);
     ctx.stroke();
-    ctx.font = "18px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#f0fafa';
-    ctx.fillText(`${seconds}`, CANVAS_WIDTH / 2, 374);
 
     ctx.restore();
+
+    // GO — the child starts when they're ready, not when a timer says so
+    drawButton(ctx, GO_X, GO_Y, GO_W, GO_H, 'GO!', true);
   }
 
   private drawWrappedText(

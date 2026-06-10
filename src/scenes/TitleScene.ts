@@ -19,6 +19,11 @@ export class TitleScene implements Scene {
       if (import.meta.env.DEV && e.code === 'Backquote') {
         e.preventDefault();
         this.manager.goto('UIKIT');
+        return;
+      }
+      if (e.code === 'KeyL') {
+        e.preventDefault();
+        this.manager.goto('LOG');
       }
     };
   }
@@ -35,7 +40,13 @@ export class TitleScene implements Scene {
 
   update(dt: number): void {
     this.elapsed += dt;
-    if (this.manager.input.shiftTap()) {
+    const tap = this.manager.input.shiftTap();
+    if (tap) {
+      // Top-right corner badge opens the grown-up Captain's Log
+      if (tap.x >= CANVAS_WIDTH - 150 && tap.y <= 36) {
+        this.manager.goto('LOG');
+        return;
+      }
       this.manager.goto('SELECT');
       return;
     }
@@ -90,6 +101,17 @@ export class TitleScene implements Scene {
     ctx.fill();
     ctx.globalAlpha = pulse;
     drawOutlinedText(ctx, 'PRESS SPACE OR ENTER TO START', CANVAS_WIDTH / 2, promptY, 16, '#f0fafa', '#061010', 5);
+    ctx.restore();
+
+    // Captain's Log badge (grown-ups) — top-right corner
+    ctx.save();
+    ctx.font = "10px 'Fredoka One', sans-serif";
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0,6,12,0.55)';
+    ctx.fillRect(CANVAS_WIDTH - 140, 8, 132, 20);
+    ctx.fillStyle = '#9ab8b8';
+    ctx.fillText("CAPTAIN'S LOG (L)", CANVAS_WIDTH - 14, 18);
     ctx.restore();
 
     drawControlsHintsBar(ctx, [

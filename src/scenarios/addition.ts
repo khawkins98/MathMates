@@ -24,10 +24,17 @@ function makeAdditionScenario(
         const b = target - a;
         correct.push({ display: `${a} + ${b}`, numeric: target });
       }
-      for (let a = 0; a <= 10; a += 1) {
-        for (let b = 0; b <= 10; b += 1) {
-          if (a + b !== target && a + b >= 0 && a + b <= 20) {
-            wrong.push({ display: `${a} + ${b}`, numeric: a + b });
+      // Distractors are near-misses (within ±1..4 of the target) drawn from the
+      // SAME operand range as the correct answers. Two rules this enforces:
+      // no "9 + 9" noise on an add-to-5 board, and no "operands over 10 are
+      // always correct" tell on the add-to-15/20 boards.
+      const maxOperand = target;
+      for (let a = 0; a <= maxOperand; a += 1) {
+        for (let b = 0; b <= maxOperand; b += 1) {
+          const sum = a + b;
+          const distance = Math.abs(sum - target);
+          if (distance >= 1 && distance <= 4 && sum >= 0 && sum <= 20) {
+            wrong.push({ display: `${a} + ${b}`, numeric: sum });
           }
         }
       }

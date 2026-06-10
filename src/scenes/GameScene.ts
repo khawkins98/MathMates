@@ -1,5 +1,6 @@
 import { AudioManager } from '@/audio/AudioManager';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, CELL_GAP, CELL_SIZE, FLASH_DURATION, GRID_COLS, GRID_OFFSET_X, GRID_OFFSET_Y, GRID_ROWS, STARTING_LIVES } from '@/constants';
+import { recordMiss } from '@/core/misses';
 import { recordStageResult } from '@/core/progress';
 import type { SceneManager } from '@/core/SceneManager';
 import { AICrewmate } from '@/entities/AICrewmate';
@@ -7,11 +8,13 @@ import { AIWanderer } from '@/entities/AIWanderer';
 import { Grid } from '@/entities/Grid';
 import { Player } from '@/entities/Player';
 import { COLOURS } from '@/rendering/colours';
+import { Effects } from '@/rendering/effects';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
-import { drawSpaceBackground, makeStars } from '@/rendering/drawHelpers';
+import { drawPanel, drawSpaceBackground, makeStars } from '@/rendering/drawHelpers';
 import { SCENARIO_REGISTRY } from '@/scenarios';
 import { STAGES } from '@/stages';
 import type { Scene, ScenarioDefinition, StageDefinition } from '@/types';
+import { EjectionCutscene } from '@/ui/EjectionCutscene';
 import { HUD } from '@/ui/HUD';
 import { isMissionParams, makeMissionSeed, type CompleteSceneParams, type GameOverSceneParams, type MissionParams } from './sceneParams';
 
@@ -56,6 +59,10 @@ export class GameScene implements Scene {
   private livesLostToImpostor = 0;
   private bonusAwarded = false;
   private statusText = '';
+  private effects = new Effects();
+  private cutscene: EjectionCutscene | null = null;
+  private suspicion = 0;
+  private errorFreeze: { display: string; numeric: number; remainingMs: number } | null = null;
 
   constructor(manager: SceneManager, rr: RoughRenderer, audio: AudioManager) {
     this.manager = manager;
@@ -87,6 +94,13 @@ export class GameScene implements Scene {
     this.wanderer = params.mode === 'crew' && this.wandererEnabled ? new AIWanderer() : null;
     if (this.wanderer) {
       this.wanderer.spawnAtEdge(this.player.col, this.player.row);
+      // Stage 0 keeps the impostor harmless while controls are being learned;
+      // later stages give it an appetite for the player's answers.
+      if (params.stageIndex >= 4) {
+        this.wanderer.configureHunting(9000, 3000);
+      } else if (params.stageIndex >= 1) {
+        this.wanderer.configureHunting(12000, 4200);
+      }
     }
     this.crewmates = params.mode === 'impostor'
       ? this.buildCrewmates(params.stageIndex)
@@ -104,6 +118,10 @@ export class GameScene implements Scene {
     this.mistakes = 0;
     this.livesLostToImpostor = 0;
     this.bonusAwarded = false;
+    this.effects = new Effects();
+    this.cutscene = null;
+    this.suspicion = 0;
+    this.errorFreeze = null;
     this.statusText = params.mode === 'crew' ? 'Eat the correct answers.' : 'Break the wrong answers before they are repaired.';
     this.hud = new HUD();
     this.syncHud();
@@ -114,6 +132,30 @@ export class GameScene implements Scene {
 
   update(dt: number): void {
     if (this.ended || !this.grid || !this.mission || !this.scenario || !this.stage) {
+      return;
+    }
+
+    this.effects.update(dt);
+
+    if (this.cutscene) {
+      this.manager.input.clear();
+      this.cutscene.update(dt);
+      if (this.cutscene && !this.cutscene.active) {
+        this.cutscene = null;
+      }
+      return;
+    }
+
+    if (this.errorFreeze) {
+      // Teaching moment: hold the action while the child reads why the
+      // answer was wrong. Any input skips it early.
+      this.errorFreeze.remainingMs -= dt;
+      const skip = this.manager.input.shift() || this.manager.input.shiftTap();
+      if (this.errorFreeze.remainingMs <= 0 || skip) {
+        this.errorFreeze = null;
+        this.manager.input.clear();
+      }
+      this.grid.update(dt);
       return;
     }
 
@@ -186,10 +228,23 @@ export class GameScene implements Scene {
     this.hud.update(dt);
 
     if (this.mission.mode === 'crew' && this.wanderer) {
-      const movedWanderer = this.wanderer.update(dt);
-      if ((moved || movedWanderer) && this.player.col === this.wanderer.col && this.player.row === this.wanderer.row) {
+      const tick = this.wanderer.update(dt, this.grid);
+      if (tick.startedChewing) {
+        this.audio.impostorChomp();
+        this.statusText = 'The impostor is eating an answer — stop it!';
+      }
+      if (tick.ate) {
+        const stolen = this.grid.stealCorrectCell(tick.ate.col, tick.ate.row);
+        if (stolen) {
+          const pos = this.grid.cellScreenPos(tick.ate.col, tick.ate.row);
+          this.effects.sadPuff(pos.x + CELL_SIZE / 2, pos.y + CELL_SIZE / 2);
+          this.audio.sabotageEat();
+          this.statusText = 'The impostor ate an answer!';
+        }
+      }
+      if ((moved || tick.moved) && this.player.col === this.wanderer.col && this.player.row === this.wanderer.row) {
         this.handleWandererCollision();
-        if (this.ended) {
+        if (this.ended || this.cutscene) {
           return;
         }
       }
@@ -327,16 +382,31 @@ export class GameScene implements Scene {
       return;
     }
 
+    const cellPos = this.grid.cellScreenPos(this.player.col, this.player.row);
+    const cx = cellPos.x + CELL_SIZE / 2;
+    const cy = cellPos.y + CELL_SIZE / 2;
+
     if (this.mission.mode === 'crew') {
       const correct = this.grid.consumeCell(this.player.col, this.player.row);
       if (correct) {
+        const before = this.multiplier;
         this.awardObjectiveProgress();
-        this.audio.cellEat();
+        this.audio.cellEat(this.streak);
+        const points = Math.round(10 * before);
+        this.effects.scorePop(cx, cy - 14, `+${points}`, COLOURS.GOLD);
+        this.effects.burst(cx, cy, [COLOURS.GOLD, COLOURS.CYAN, '#ffffff']);
+        if (this.multiplier > before) {
+          this.effects.showStamp(`STREAK x${this.multiplier % 1 === 0 ? this.multiplier : this.multiplier.toFixed(1)}!`, COLOURS.GOLD);
+          this.audio.streakUp();
+        }
         this.statusText = 'Correct! Keep going!';
       } else {
         this.mistakes += 1;
         this.loseLife();
         this.audio.errorBuzz();
+        this.effects.sadPuff(cx, cy);
+        recordMiss(cell.value.display, cell.value.numeric, this.scenario?.id ?? '');
+        this.errorFreeze = { display: cell.value.display, numeric: cell.value.numeric, remainingMs: 2400 };
         this.statusText = 'Oops — that one does not match the rule.';
       }
     } else {
@@ -346,13 +416,27 @@ export class GameScene implements Scene {
         this.mistakes += 1;
         this.loseLife();
         this.audio.errorBuzz();
+        this.effects.sadPuff(cx, cy);
+        recordMiss(cell.value.display, cell.value.numeric, this.scenario?.id ?? '');
+        this.errorFreeze = { display: cell.value.display, numeric: cell.value.numeric, remainingMs: 2400 };
         this.statusText = 'Yikes! You ate a correct answer.';
       } else {
         this.grid.impostorBreakCell(this.player.col, this.player.row);
+        const before = this.multiplier;
         this.awardObjectiveProgress();
         this.audio.sabotageEat();
+        this.effects.scorePop(cx, cy - 14, `+${Math.round(10 * before)}`, COLOURS.DANGER);
+        this.effects.burst(cx, cy, [COLOURS.DANGER, COLOURS.GOLD], 6);
+        if (this.multiplier > before) {
+          this.effects.showStamp(`STREAK x${this.multiplier % 1 === 0 ? this.multiplier : this.multiplier.toFixed(1)}!`, COLOURS.DANGER);
+          this.audio.streakUp();
+        }
         this.statusText = 'Sabotage successful!';
         this.checkCrewmateElimination();
+        this.raiseSuspicionIfSeen();
+        if (this.ended || this.cutscene) {
+          return;
+        }
       }
     }
 
@@ -382,9 +466,12 @@ export class GameScene implements Scene {
     this.livesLostToImpostor += 1;
     this.loseLife();
     this.audio.errorBuzz();
+    this.effects.shake(5, 280);
+    this.effects.damageFlash();
     this.statusText = 'The impostor bumped into you!';
     if (this.lives <= 0) {
-      this.goToGameOver();
+      this.audio.crewmateEject();
+      this.cutscene = new EjectionCutscene('You were ejected . . .', COLOURS.PLAYER_CREW, () => this.goToGameOver());
       return;
     }
     this.wanderer.spawnAtEdge(this.player.col, this.player.row);
@@ -392,18 +479,53 @@ export class GameScene implements Scene {
   }
 
   private checkCrewmateElimination(): void {
+    if (!this.grid) {
+      return;
+    }
     let eliminated = 0;
+    let colour = COLOURS.AI_CREW_1;
     for (const crewmate of this.crewmates) {
       if (crewmate.alive && crewmate.col === this.player.col && crewmate.row === this.player.row) {
         crewmate.eliminate();
+        colour = crewmate.personality.colour;
         this.score += 25;
+        this.suspicion = Math.max(0, this.suspicion - 1);
         eliminated += 1;
       }
     }
     if (eliminated > 0) {
+      const pos = this.grid.cellScreenPos(this.player.col, this.player.row);
+      this.effects.scorePop(pos.x + CELL_SIZE / 2, pos.y + 8, '+25', COLOURS.GOLD);
       this.audio.crewmateEject();
       this.statusText = eliminated > 1 ? 'Double sabotage! Crewmates eliminated.' : 'Crewmate eliminated!';
+      this.cutscene = new EjectionCutscene('A crewmate was ejected', colour, () => {});
     }
+  }
+
+  /** Breaking a cell with a crewmate nearby raises suspicion; five strikes calls a meeting. */
+  private raiseSuspicionIfSeen(): void {
+    const wrapped = (a: number, b: number, size: number): number => {
+      const d = Math.abs(a - b);
+      return Math.min(d, size - d);
+    };
+    const seen = this.crewmates.some(
+      (c) =>
+        c.alive &&
+        wrapped(c.col, this.player.col, GRID_COLS) + wrapped(c.row, this.player.row, GRID_ROWS) <= 2,
+    );
+    if (!seen) {
+      return;
+    }
+    this.suspicion += 1;
+    this.audio.suspicionSting();
+    if (this.suspicion >= 5) {
+      this.statusText = 'Emergency meeting! You were caught!';
+      this.audio.eliminationSting();
+      this.cutscene = new EjectionCutscene('The crew caught you!', COLOURS.PLAYER_IMPOSTOR, () => this.goToGameOver('caught'));
+      return;
+    }
+    this.effects.showStamp('SEEN!', COLOURS.DANGER);
+    this.statusText = `A crewmate saw you! Suspicion ${this.suspicion}/5`;
   }
 
   private resolveAfterEat(): void {
@@ -416,17 +538,20 @@ export class GameScene implements Scene {
         this.score += 50;
         this.bonusAwarded = true;
       }
-      const progression = recordStageResult(this.stage.id, this.mission.mode, this.mission.scenarioIndex, this.score, this.elapsedMs);
+      const accuracy = this.getAccuracy();
+      const badges = 1 + (accuracy >= 0.8 ? 1 : 0) + (accuracy >= 0.8 && this.bonusAwarded ? 1 : 0);
+      const progression = recordStageResult(this.stage.id, this.mission.mode, this.mission.scenarioIndex, this.score, this.elapsedMs, badges);
       const nextMission = this.buildNextMission(progression.stageJustCompleted);
       const completeParams: CompleteSceneParams = {
         ...this.mission,
         stageTitle: this.stage.title,
         scenarioTitle: this.scenario.title,
         score: this.score,
-        accuracy: this.getAccuracy(),
+        accuracy,
         timeMs: this.elapsedMs,
         lives: this.lives,
         bonusAwarded: this.bonusAwarded,
+        badges,
         nextMission,
       };
       this.ended = true;
@@ -495,7 +620,7 @@ export class GameScene implements Scene {
     return this.successfulActions / total;
   }
 
-  private goToGameOver(): void {
+  private goToGameOver(reason?: 'caught'): void {
     if (!this.mission || !this.stage || !this.scenario) {
       return;
     }
@@ -508,7 +633,7 @@ export class GameScene implements Scene {
       scenarioTitle: this.scenario.title,
       score: this.score,
       mode: this.mission.mode,
-      reason: this.livesLostToImpostor > this.mistakes ? 'impostor' : 'mistakes',
+      reason: reason ?? (this.livesLostToImpostor > this.mistakes ? 'impostor' : 'mistakes'),
     };
     this.ended = true;
     this.audio.eliminationSting();
@@ -546,10 +671,32 @@ export class GameScene implements Scene {
       this.mission.mode === 'crew' ? this.grid.totalCorrect : this.grid.totalWrong,
       this.mission.mode === 'crew' ? COLOURS.SUCCESS : COLOURS.DANGER,
     );
+    this.hud.setO2(this.scenario ? Math.max(0, 1 - this.elapsedMs / (this.scenario.parTime * 1000)) : 0);
+    this.hud.setSuspicion(this.mission.mode === 'impostor' ? this.suspicion : -1, 5);
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
+    if (this.cutscene) {
+      this.cutscene.draw(ctx, this.rr);
+      return;
+    }
+
+    const shakeOffset = this.effects.shakeOffset();
+    ctx.save();
+    ctx.translate(shakeOffset.x, shakeOffset.y);
+
     drawSpaceBackground(ctx, this.elapsedMs, this.stars);
+
+    // Impostor mode plays under emergency lighting — same room, redder mood
+    if (this.mission?.mode === 'impostor') {
+      const sweep = (this.elapsedMs * 0.0004) % (Math.PI * 2);
+      const sx = CANVAS_WIDTH / 2 + Math.cos(sweep) * 180;
+      const grad = ctx.createRadialGradient(sx, CANVAS_HEIGHT / 2, 40, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_HEIGHT);
+      grad.addColorStop(0, 'rgba(180, 30, 30, 0.10)');
+      grad.addColorStop(1, 'rgba(90, 10, 20, 0.16)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
 
     ctx.fillStyle = COLOURS.GRID_BG;
     ctx.fillRect(
@@ -561,6 +708,20 @@ export class GameScene implements Scene {
 
     if (this.grid) {
       this.grid.draw(this.rr);
+
+      // Danger telegraph: pulsing ring around the answer being chewed
+      const chew = this.wanderer?.chewTarget;
+      if (chew && this.grid) {
+        const pos = this.grid.cellScreenPos(chew.col, chew.row);
+        const pulse = 0.5 + 0.5 * Math.sin(this.elapsedMs * 0.012);
+        ctx.save();
+        ctx.strokeStyle = COLOURS.DANGER;
+        ctx.lineWidth = 3 + pulse * 2;
+        ctx.globalAlpha = 0.55 + pulse * 0.45;
+        ctx.strokeRect(pos.x - 3, pos.y - 3, CELL_SIZE + 6, CELL_SIZE + 6);
+        ctx.restore();
+      }
+
       if (this.mission?.mode === 'crew' && this.wanderer) {
         this.wanderer.draw(this.rr, this.grid, this.elapsedMs);
       }
@@ -582,26 +743,80 @@ export class GameScene implements Scene {
     ctx.fillText(this.statusText, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
     ctx.restore();
 
+    this.effects.draw(ctx);
+    ctx.restore(); // shake translate
+
+    if (this.errorFreeze) {
+      this.drawErrorFreeze(ctx);
+    }
+
     if (this.paused) {
       ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      this.rr.cell(160, 140, 280, 150, '#10233a', '#ffffff', 207);
-      ctx.fillStyle = '#ffffff';
+      drawPanel(ctx, 130, 130, 340, 170, '#10233a', '#4a7070', 3);
+
+      // The player takes a nap on top of the panel
+      const nap = Math.sin(this.elapsedMs * 0.002);
+      this.rr.crewmate(CANVAS_WIDTH / 2 + 120, 124 + nap, COLOURS.PLAYER_CREW, 4, 0.7);
+      ctx.font = "12px 'Fredoka One', sans-serif";
+      ctx.fillStyle = '#c8e8e0';
+      ctx.textAlign = 'left';
+      ctx.fillText('z', CANVAS_WIDTH / 2 + 142, 102 - nap * 2);
+      ctx.fillText('z', CANVAS_WIDTH / 2 + 152, 92 - nap * 3);
+
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = "24px 'Press Start 2P', monospace";
       ctx.lineJoin = 'round';
       ctx.strokeStyle = '#080c0c';
       ctx.lineWidth = 5;
-      ctx.strokeText('PAUSED', CANVAS_WIDTH / 2, 178);
+      ctx.strokeText('PAUSED', CANVAS_WIDTH / 2, 172);
       ctx.fillStyle = '#f0fafa';
-      ctx.fillText('PAUSED', CANVAS_WIDTH / 2, 178);
-      ctx.font = "15px 'Fredoka One', sans-serif";
+      ctx.fillText('PAUSED', CANVAS_WIDTH / 2, 172);
+      ctx.font = "14px 'Fredoka One', sans-serif";
       ctx.fillStyle = '#c8e8e0';
-      ctx.fillText('Tap or press Space to resume', CANVAS_WIDTH / 2, 220);
+      ctx.fillText('Tap or press Space to resume', CANVAS_WIDTH / 2, 216);
       ctx.fillText('Tap here or Backspace for stage select', CANVAS_WIDTH / 2, 248);
       ctx.restore();
     }
+  }
+
+  /** Teaching overlay: why the eaten answer was wrong, in numbers a child can check. */
+  private drawErrorFreeze(ctx: CanvasRenderingContext2D): void {
+    if (!this.errorFreeze || !this.scenario || !this.mission) {
+      return;
+    }
+    const { display, numeric } = this.errorFreeze;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    drawPanel(ctx, 110, 128, 380, 168, '#3a2020', COLOURS.DANGER, 3);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const isBareNumber = !display.includes('+') && !display.includes('−');
+    const headline = isBareNumber ? `${display}` : `${display} = ${numeric}`;
+    ctx.font = "26px 'Fredoka One', sans-serif";
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#080c0c';
+    ctx.lineWidth = 6;
+    ctx.strokeText(headline, CANVAS_WIDTH / 2, 178);
+    ctx.fillStyle = '#ffd0d8';
+    ctx.fillText(headline, CANVAS_WIDTH / 2, 178);
+
+    const ruleLine = this.mission.mode === 'impostor'
+      ? 'That one was CORRECT — leave those alone!'
+      : `We need: ${this.scenario.ruleText.toLowerCase()}`;
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(ruleLine, CANVAS_WIDTH / 2, 222);
+
+    ctx.font = "11px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#9ab8b8';
+    ctx.fillText('tap or press any key to keep going', CANVAS_WIDTH / 2, 274);
+    ctx.restore();
   }
 }
