@@ -1,96 +1,83 @@
 # Contributing to MathMates
 
+---
+
 ## Commits
 
-Use [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages.
-
-### Format
+Use [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
 <type>(<optional scope>): <short description>
-
-[optional body]
-
-[optional footer]
 ```
-
-### Types
 
 | Type | Use for |
-|------|---------|
-| `feat` | A new feature or behaviour |
-| `fix` | A bug fix |
-| `refactor` | Code restructure with no behaviour change |
-| `style` | Visual/CSS-only changes (not code style) |
+|---|---|
+| `feat` | New feature or behaviour |
+| `fix` | Bug fix |
+| `refactor` | Code change with no behaviour change |
+| `style` | Visual/CSS changes (not code formatting) |
 | `perf` | Performance improvement |
 | `test` | Adding or updating tests |
-| `chore` | Tooling, config, dependency updates |
+| `chore` | Tooling, config, dependency bumps |
 | `docs` | Documentation only |
-| `ci` | CI/CD workflow changes |
+| `ci` | CI/CD changes |
 
-### Examples
-
+**Examples:**
 ```
-feat(select-scene): add difficulty selector to stage screen
-fix(crewmate): correct visor clipping on mobile
-refactor(game-scene): extract answer-check logic into helper
-chore: bump pixi.js to 8.1.0
+feat(scenarios): add doubles scenario for KS1
+fix(game-scene): prevent freeze when crewmate is eliminated mid-dwell
+refactor(grid): extract cell state machine into Cell class
+chore: bump rough.js to 4.6.0
 ```
-
-### Rules
-
-- Use the **imperative, present tense**: "add feature" not "added feature"
-- Keep the subject line under **72 characters**
-- Reference issues in the footer when relevant: `Closes #12`
-- Breaking changes must include `BREAKING CHANGE:` in the footer
 
 ---
 
-## Branching & Pull Requests
+## Branches and PRs
 
-### When to work directly on `main`
-
-- Tiny, self-contained fixes (typos, one-line config tweaks)
-- Changes that pose no risk to the deployed site
-
-### When to use a feature branch + PR
-
-Use a branch for anything that:
-- Adds a new feature or scene
-- Changes game logic or scoring
-- Modifies shared utilities or types
-- Touches CI / deployment config
-
-### Branch naming
-
-```
-<type>/<short-slug>
-```
-
-Examples: `feat/times-tables-stage`, `fix/mobile-tap-regression`, `chore/update-deps`
-
-### PR checklist
-
-Before opening a pull request:
-
-- [ ] Commits follow Conventional Commits
-- [ ] `npm run build` passes locally
-- [ ] The change has been manually tested in-browser (`npm run dev`)
-- [ ] PR title follows Conventional Commits format (it becomes the squash-merge commit message)
-
-### Merging
-
-Prefer **squash merge** to keep `main` history clean. The PR title becomes the final commit message, so make it count.
+- All work goes on a feature branch, never directly to `main`.
+- Branch naming: `feat/<topic>`, `fix/<topic>`, `chore/<topic>`.
+- PR title becomes the squash-merge commit message — write it as a Conventional Commit.
+- Keep PRs focused. One logical change per PR.
 
 ---
 
-## CI
+## Adding a New Scenario
 
-Two workflows run automatically:
+This is the most common contribution. The steps are:
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| **Build check** | Every push & PR | Runs `tsc && vite build` to catch type errors and build failures before merge |
-| **Deploy** | Push to `main` | Builds and publishes to GitHub Pages |
+1. **Create** `src/scenarios/<your-scenario>.ts` implementing `ScenarioDefinition` (see [`docs/PRD.md §5`](docs/PRD.md)).
+2. **Register** it in `src/scenarios/index.ts`.
+3. **Add** it to a stage in `src/stages/index.ts`, or create a new `StageDefinition` if it's a new topic area.
+4. **Test** it manually: play through crew mode and impostor mode. Verify the grid always has at least 3 correct cells and 3 wrong cells so both modes are completable.
 
-The build check must pass before merging a PR. It runs the same `npm run build` command as the deploy workflow, so a green check here means the deploy will succeed.
+No changes to game-engine code are needed for a new scenario.
+
+---
+
+## Visual Style
+
+All in-game graphics (characters, cells, UI elements) are drawn with **Rough.js** on Canvas 2D. Do not add bitmap sprites or pixel-art assets for game elements. Exception: full-screen background art (e.g. the title screen's `public/bg-title.jpg`) may be a bitmap.
+
+When drawing new UI elements:
+- Use the palette constants from `src/rendering/colours.ts`.
+- Use the helpers in `src/rendering/RoughRenderer.ts` rather than calling `rough.canvas()` directly — this keeps fill style and roughness settings consistent.
+- Character shapes (crewmate, impostor) are defined in `src/entities/` as draw functions, not image files.
+
+---
+
+## Code Style
+
+- TypeScript strict mode. No `any`.
+- Prefer explicit types on public function signatures.
+- Pure functions for all scenario logic (`isCorrect`, `generateGrid`).
+- No side effects in scenario files — they are data, not controllers.
+- Comments only where intent is non-obvious. Don't restate the code.
+
+---
+
+## Educational Review
+
+Before merging a new stage or scenario, consider asking someone familiar with KS1–2 curriculum to verify:
+- The maths is correct and age-appropriate.
+- The difficulty progression within the stage makes sense.
+- The `briefingText` is clear to a child.

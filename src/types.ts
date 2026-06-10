@@ -1,46 +1,41 @@
-export type InputAction = 'move_up' | 'move_down' | 'move_left' | 'move_right' | 'eat' | 'sus' | 'pause';
-
 export type GameMode = 'crew' | 'impostor';
 
-export type LoseReason = 'lives' | 'ai_cleared';
+export type CellState = 'normal' | 'highlighted' | 'consumed' | 'broken' | 'sus' | 'correct_flash' | 'error_flash';
 
-export type GameStateKey =
-  | 'TITLE'
-  | 'SELECT'
-  | 'BRIEFING'
-  | 'PLAYING'
-  | 'COMPLETE'
-  | 'GAME_OVER'
-  | 'SETTINGS';
+export interface CellValue {
+  display: string;
+  numeric: number;
+}
 
-export type CellState = 'normal' | 'highlighted' | 'consumed' | 'correct_flash' | 'error_flash';
-
-export interface GridData {
-  cells: (number | string)[];
-  correctIndices: Set<number>;
+export interface ScenarioDefinition {
+  id: string;
+  title: string;
+  topic: string;
+  ruleText: string;
+  /** Inverted goal text shown in impostor mode (break the wrong answers). */
+  impostorRuleText: string;
+  briefingText: string;
+  ksYears: number[];
+  difficulty: 1 | 2 | 3;
+  parTime: number;
+  generateGrid(seed?: number): CellValue[];
+  isCorrect(value: CellValue): boolean;
 }
 
 export interface StageDefinition {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  difficulty: 1 | 2 | 3 | 4 | 5;
-  missionCount: number;
-  impostorEnabled: boolean;
-  parTime: number;
-  generateGrid(missionIndex: number, cols: number, rows: number): GridData;
-  getRuleText(missionIndex: number): string;
+  icon: string;
+  iconColour: string;
+  scenarios: string[];
 }
 
-export interface SaveData {
-  version: number;
-  completedMissions: Record<string, number[]>; // stageId -> completed mission indices
-  highScores: Record<string, number>; // stageId -> best score
-  impostorCompletedMissions: Record<string, number[]>; // stageId -> completed impostor mission indices
-  impostorHighScores: Record<string, number>; // stageId -> best impostor score
-  settings: {
-    soundEnabled: boolean;
-    impostorEnabled: boolean;
-    unlockAll: boolean;
-  };
+export interface Scene {
+  enter(params?: Record<string, unknown>): void;
+  exit(): void;
+  update(dt: number): void;
+  draw(ctx: CanvasRenderingContext2D): void;
 }
+
+export type SceneName = 'TITLE' | 'SELECT' | 'BRIEFING' | 'GAME' | 'COMPLETE' | 'GAME_OVER' | 'UIKIT';

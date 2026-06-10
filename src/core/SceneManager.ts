@@ -1,103 +1,57 @@
-import { Application, Container } from 'pixi.js';
-import { Scene } from './Scene';
+import type { Scene, SceneName } from '@/types';
 import { InputManager } from './InputManager';
-import { TransitionOverlay } from './TransitionOverlay';
-import { SoundManager } from '@/audio/SoundManager';
-import { SaveManager } from '@/persistence/SaveManager';
-import type { GameStateKey } from '@/types';
 
 export class SceneManager {
-  public app: Application;
-  public input: InputManager;
-  public sound: SoundManager;
-  public save: SaveManager;
-  public transition: TransitionOverlay;
+  private scenes = new Map<SceneName, Scene>();
+  private current: Scene | null = null;
+  private currentName: SceneName | null = null;
+  readonly input: InputManager;
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
 
-  private scenes = new Map<GameStateKey, Scene>();
-  private activeScene: Scene | null = null;
-  private _stage: Container;
-
-  constructor(app: Application, stage?: Container) {
-    this.app = app;
-    this._stage = stage ?? app.stage;
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+    this.canvas = canvas;
+    this.ctx = ctx;
     this.input = new InputManager();
-    this.sound = new SoundManager();
-    this.save = new SaveManager();
-    this.transition = new TransitionOverlay();
-    this._stage.addChild(this.transition.root);
   }
 
-  register(key: GameStateKey, scene: Scene): void {
-    this.scenes.set(key, scene);
+  register(name: SceneName, scene: Scene): void {
+    this.scenes.set(name, scene);
   }
 
-  async goto(key: GameStateKey, data?: unknown): Promise<void> {
-    if (this.transition.isActive) return;
-
-    await this.transition.fadeOut();
-
-    if (this.activeScene) {
-      this.activeScene.exit();
-      this._stage.removeChild(this.activeScene.root);
+  goto(name: SceneName, params?: Record<string, unknown>): void {
+    if (this.current) {
+      this.current.exit();
     }
-
-    const scene = this.scenes.get(key);
-    if (!scene) throw new Error(`Scene not found: ${key}`);
-
-    this.activeScene = scene;
-    this._stage.addChildAt(scene.root, 0);
-    scene.enter(data);
-
-    await this.transition.fadeIn();
+    this.input.clear();
+    const next = this.scenes.get(name);
+    if (!next) {
+      throw new Error(`Scene not found: ${name}`);
+    }
+    this.current = next;
+    this.currentName = name;
+    this.current.enter(params);
   }
 
-  start(): void {
-    // Import and register all scenes, then go to title
-    this._bootstrap().catch((err) => {
-      console.error('Failed to bootstrap scenes:', err);
-    });
+  update(dt: number): void {
+    this.current?.update(dt);
   }
 
-  private async _bootstrap(): Promise<void> {
-    // Dynamically import all scenes to avoid circular deps
-    const [
-      { TitleScene },
-      { SelectScene },
-      { BriefingScene },
-      { GameScene },
-      { CompleteScene },
-      { GameOverScene },
-      { SettingsScene },
-    ] = await Promise.all([
-      import('@/scenes/TitleScene'),
-      import('@/scenes/SelectScene'),
-      import('@/scenes/BriefingScene'),
-      import('@/scenes/GameScene'),
-      import('@/scenes/CompleteScene'),
-      import('@/scenes/GameOverScene'),
-      import('@/scenes/SettingsScene'),
-    ]);
+  draw(): void {
+    if (this.current) {
+      this.current.draw(this.ctx);
+    }
+  }
 
-    this.register('TITLE', new TitleScene(this));
-    this.register('SELECT', new SelectScene(this));
-    this.register('BRIEFING', new BriefingScene(this));
-    this.register('PLAYING', new GameScene(this));
-    this.register('COMPLETE', new CompleteScene(this));
-    this.register('GAME_OVER', new GameOverScene(this));
-    this.register('SETTINGS', new SettingsScene(this));
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas;
+  }
 
-    // Start ticker
-    this.app.ticker.add((ticker) => {
-      try {
-        if (this.activeScene) {
-          this.activeScene.update(ticker.deltaMS);
-        }
-        this.transition.update(ticker.deltaMS);
-      } catch (err) {
-        console.error('Tick error:', err);
-      }
-    });
+  getCtx(): CanvasRenderingContext2D {
+    return this.ctx;
+  }
 
-    await this.goto('TITLE');
+  getCurrentName(): SceneName | null {
+    return this.currentName;
   }
 }

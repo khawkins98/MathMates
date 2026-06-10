@@ -1,256 +1,97 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { Scene } from '@/core/Scene';
-import { SceneManager } from '@/core/SceneManager';
-import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
-import { createGear } from '@/sprites/GearIcon';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
+import type { Scene } from '@/types';
+import type { SceneManager } from '@/core/SceneManager';
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+import { drawOutlinedText, drawControlsHintsBar } from '@/rendering/drawHelpers';
 
-const SPAWN_MARGIN = 60;
-const SPEED_MIN = 0.016;
-const SPEED_MAX = 0.044;
-
-// Extra colors only for the title drifting crewmates — concept art shows
-// more variety than the core 6 game colors. Not added to CREW_COLORS so
-// gameplay palettes (AI colours, player selection etc.) are unaffected.
-const TITLE_EXTRA_COLORS = [
-  0x38fedc, // cyan
-  0x6b31bc, // purple
-  0x50ef39, // lime
-] as const;
-
-const TITLE_COLORS = [...CREW_COLORS, ...TITLE_EXTRA_COLORS];
-
-// Green used for the START button (matches concept art)
-const START_BTN_COLOR = 0x2db85a;
-
-interface DriftingCrewmate {
-  sprite: Container;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  /** 0 = far/tiny/invisible, 1 = close/large/opaque */
-  depth: number;
-  /** how fast depth changes per ms — negative = receding (big→small), positive = approaching (small→big) */
-  depthRate: number;
-  rotSpeed: number; // rad/ms
-}
-
-export class TitleScene extends Scene {
+export class TitleScene implements Scene {
   private manager: SceneManager;
-  private crewmates: DriftingCrewmate[] = [];
-  private startButton: ButtonSprite | null = null;
-  /** Wrapper container for pulsing the START button independently of its press/hover scale. */
-  private startBtnWrapper: Container | null = null;
   private elapsed = 0;
+  private bgImage: HTMLImageElement;
+  private bgReady = false;
+  private onBacktick: (e: KeyboardEvent) => void;
 
   constructor(manager: SceneManager) {
-    super();
     this.manager = manager;
+    this.bgImage = new Image();
+    this.bgImage.onload = () => { this.bgReady = true; };
+    this.bgImage.src = '/bg-title.jpg';
+    this.onBacktick = (e: KeyboardEvent) => {
+      if (e.code === 'Backquote') {
+        e.preventDefault();
+        this.manager.goto('UIKIT');
+      }
+    };
   }
 
-  enter(): void {
+  enter(_params?: Record<string, unknown>): void {
     this.elapsed = 0;
-    this.crewmates = [];
+    this.manager.input.setEnabled(true);
+    window.addEventListener('keydown', this.onBacktick);
+  }
 
-    // --- Layer 0: stars + nebula (behind everything) ---
-    this.root.addChild(this._createBackground());
-
-    // --- Layer 1: drifting crewmates (behind title / UI) ---
-    for (let i = 0; i < TITLE_COLORS.length; i++) {
-      const sprite = createCrewmateSprite(TITLE_COLORS[i]);
-      this.root.addChild(sprite);
-
-      const cm: DriftingCrewmate = {
-        sprite,
-        x: Math.random() * GAME_WIDTH,
-        y: Math.random() * GAME_HEIGHT,
-        vx: 0,
-        vy: 0,
-        depth: Math.random(),
-        depthRate: 0,
-        rotSpeed: (Math.random() - 0.5) * 0.0008,
-      };
-      this._setDriftDirection(cm);
-      this.crewmates.push(cm);
-    }
-
-    // --- Layer 2: title ---
-    const titleStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 46,
-      fontWeight: 'bold',
-      fill: COLORS.STAR_WHITE,
-      align: 'center',
-      dropShadow: {
-        color: 0x0066ff,
-        distance: 4,
-        angle: Math.PI / 4,
-        blur: 0,
-        alpha: 0.85,
-      },
-    });
-    const title = new Text({ text: 'MATHMATES', style: titleStyle });
-    title.anchor.set(0.5);
-    title.x = GAME_WIDTH / 2;
-    title.y = 80;
-    this.root.addChild(title);
-
-    // --- Layer 3: START button (wrapped for centered pulse) ---
-    const BTN_W = 180, BTN_H = 46;
-    this.startButton = new ButtonSprite('START', BTN_W, BTN_H, START_BTN_COLOR, 16, true);
-    this.startButton.onClick = () => {
-      this.manager.sound.buttonClick();
-      this.manager.goto('SELECT');
-    };
-
-    const wrapper = new Container();
-    wrapper.addChild(this.startButton);
-    // Pivot at button centre so the pulse scales in place
-    wrapper.pivot.set(BTN_W / 2, BTN_H / 2);
-    wrapper.x = GAME_WIDTH / 2;
-    wrapper.y = GAME_HEIGHT - 102 + BTN_H / 2;
-    this.root.addChild(wrapper);
-    this.startBtnWrapper = wrapper;
-
-    // --- Layer 3: color indicator dots ---
-    const dots = this._createColorDots();
-    dots.x = GAME_WIDTH / 2;
-    dots.y = GAME_HEIGHT - 44;
-    this.root.addChild(dots);
-
-    // --- Layer 3: settings gear (bottom-right) ---
-    const gear = createGear(32);
-    gear.x = GAME_WIDTH - 48;
-    gear.y = GAME_HEIGHT - 48;
-    gear.eventMode = 'static';
-    gear.cursor = 'pointer';
-    gear.on('pointerdown', () => {
-      this.manager.sound.buttonClick();
-      this.manager.goto('SETTINGS');
-    });
-    this.root.addChild(gear);
-
-    this.manager.sound.ambientHum();
+  exit(): void {
+    window.removeEventListener('keydown', this.onBacktick);
   }
 
   update(dt: number): void {
     this.elapsed += dt;
-
-    for (const cm of this.crewmates) {
-      cm.x += cm.vx * dt;
-      cm.y += cm.vy * dt;
-      cm.depth += cm.depthRate * dt;
-      cm.sprite.rotation += cm.rotSpeed * dt;
-
-      const d = Math.max(0, Math.min(1, cm.depth));
-      cm.sprite.scale.set(0.2 + d * 1.1);
-      cm.sprite.alpha = 0.1 + d * 0.85;
-      cm.sprite.x = cm.x;
-      cm.sprite.y = cm.y;
-
-      const offScreen =
-        cm.x < -SPAWN_MARGIN || cm.x > GAME_WIDTH + SPAWN_MARGIN ||
-        cm.y < -SPAWN_MARGIN || cm.y > GAME_HEIGHT + SPAWN_MARGIN;
-
-      if (cm.depth <= 0 || offScreen) {
-        this._respawn(cm);
+    let action = this.manager.input.shift();
+    while (action) {
+      if (action === 'eat' || action === 'confirm') {
+        this.manager.goto('SELECT');
+        return;
       }
-    }
-
-    // Gentle breathing pulse on the START button wrapper
-    if (this.startBtnWrapper) {
-      const pulse = 1.0 + 0.03 * Math.sin(this.elapsed / 1000 * 2.5);
-      this.startBtnWrapper.scale.set(pulse);
+      action = this.manager.input.shift();
     }
   }
 
-  exit(): void {
-    this.manager.sound.stopAmbientHum();
-    this.destroyChildren();
-    this.crewmates = [];
-    this.startButton = null;
-    this.startBtnWrapper = null;
-  }
-
-  /** Star field + nebula cloud for the title background. */
-  private _createBackground(): Container {
-    const bg = new Container();
-
-    // Star field — random single/double pixel dots
-    const stars = new Graphics();
-    for (let i = 0; i < 70; i++) {
-      const x = Math.floor(Math.random() * GAME_WIDTH);
-      const y = Math.floor(Math.random() * GAME_HEIGHT);
-      const size = Math.random() < 0.75 ? 1 : 2;
-      const a = 0.3 + Math.random() * 0.7;
-      stars.rect(x, y, size, size).fill({ color: 0xffffff, alpha: a });
-    }
-    bg.addChild(stars);
-
-    // Nebula — overlapping ellipses in the upper portion
-    const nebula = new Graphics();
-    nebula.ellipse(210, 80, 185, 58).fill({ color: 0x1e3599, alpha: 0.28 });
-    nebula.ellipse(295, 65, 155, 48).fill({ color: 0x2845aa, alpha: 0.2 });
-    nebula.ellipse(340, 95, 120, 42).fill({ color: 0x162e8c, alpha: 0.22 });
-    nebula.ellipse(155, 72, 105, 38).fill({ color: 0x3555bb, alpha: 0.16 });
-    nebula.ellipse(250, 72, 65, 28).fill({ color: 0x5070cc, alpha: 0.13 });
-    bg.addChild(nebula);
-
-    return bg;
-  }
-
-  /** Five colored dots below the START button — decorative palette indicator. */
-  private _createColorDots(): Container {
-    const container = new Container();
-    const PALETTE = [0xc51111, 0xf5f557, 0x127f2c, 0x132ed1, 0xffffff];
-    const R = 6;
-    const GAP = 18;
-    const offsetX = -((PALETTE.length - 1) * GAP) / 2;
-
-    PALETTE.forEach((color, i) => {
-      const g = new Graphics();
-      const x = Math.round(offsetX + i * GAP);
-      g.circle(x, 0, R).fill(color);
-      g.circle(x, 0, R).stroke({ color: 0xffffff, width: 1, alpha: 0.35 });
-      container.addChild(g);
-    });
-
-    return container;
-  }
-
-  private _setDriftDirection(cm: DriftingCrewmate): void {
-    const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
-    const angle = Math.random() * Math.PI * 2;
-    cm.vx = Math.cos(angle) * speed;
-    cm.vy = Math.sin(angle) * speed;
-    const rate = (0.0003 + Math.random() * 0.0004);
-    cm.depthRate = Math.random() < 0.5 ? rate : -rate;
-  }
-
-  private _respawn(cm: DriftingCrewmate): void {
-    const edge = Math.floor(Math.random() * 4);
-    const speed = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN);
-
-    switch (edge) {
-      case 0:
-        cm.x = Math.random() * GAME_WIDTH; cm.y = -SPAWN_MARGIN;
-        cm.vx = (Math.random() - 0.5) * speed; cm.vy = speed; break;
-      case 1:
-        cm.x = Math.random() * GAME_WIDTH; cm.y = GAME_HEIGHT + SPAWN_MARGIN;
-        cm.vx = (Math.random() - 0.5) * speed; cm.vy = -speed; break;
-      case 2:
-        cm.x = -SPAWN_MARGIN; cm.y = Math.random() * GAME_HEIGHT;
-        cm.vx = speed; cm.vy = (Math.random() - 0.5) * speed; break;
-      default:
-        cm.x = GAME_WIDTH + SPAWN_MARGIN; cm.y = Math.random() * GAME_HEIGHT;
-        cm.vx = -speed; cm.vy = (Math.random() - 0.5) * speed;
+  draw(ctx: CanvasRenderingContext2D): void {
+    // Background
+    if (this.bgReady) {
+      ctx.drawImage(this.bgImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    } else {
+      ctx.fillStyle = '#060e14';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
-    cm.depth = 0;
-    cm.depthRate = 0.0003 + Math.random() * 0.0004;
-    cm.rotSpeed = (Math.random() - 0.5) * 0.0008;
+    // Dark gradient overlays
+    const topGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT * 0.45);
+    topGrad.addColorStop(0, 'rgba(0,6,12,0.72)');
+    topGrad.addColorStop(1, 'rgba(0,6,12,0)');
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT * 0.45);
+
+    const btmGrad = ctx.createLinearGradient(0, CANVAS_HEIGHT * 0.72, 0, CANVAS_HEIGHT);
+    btmGrad.addColorStop(0, 'rgba(0,6,12,0)');
+    btmGrad.addColorStop(1, 'rgba(0,6,12,0.85)');
+    ctx.fillStyle = btmGrad;
+    ctx.fillRect(0, CANVAS_HEIGHT * 0.72, CANVAS_WIDTH, CANVAS_HEIGHT * 0.28);
+
+    // Title
+    drawOutlinedText(ctx, 'MATHMATES', CANVAS_WIDTH / 2, 68, 48, '#ffffff', '#061010', 9);
+    drawOutlinedText(ctx, 'A MATHS ADVENTURE IN SPACE', CANVAS_WIDTH / 2, 114, 14, '#40d8c0', '#061010', 5);
+
+    // Pulsing start prompt
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(this.elapsed * 0.0028));
+    const promptY = CANVAS_HEIGHT * 0.56;
+    ctx.save();
+    ctx.globalAlpha = pulse * 0.88;
+    ctx.fillStyle = 'rgba(0,6,12,0.6)';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect((CANVAS_WIDTH - 380) / 2, promptY - 21, 380, 42, 8);
+    } else {
+      ctx.fillRect((CANVAS_WIDTH - 380) / 2, promptY - 21, 380, 42);
+    }
+    ctx.fill();
+    ctx.globalAlpha = pulse;
+    drawOutlinedText(ctx, 'PRESS SPACE OR ENTER TO START', CANVAS_WIDTH / 2, promptY, 16, '#f0fafa', '#061010', 5);
+    ctx.restore();
+
+    drawControlsHintsBar(ctx, [
+      ['ARROW KEYS', 'move'],
+      ['SPACE', 'eat'],
+      ['S', 'mark sus'],
+    ]);
   }
 }
-

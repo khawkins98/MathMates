@@ -1,102 +1,150 @@
-import { Container } from 'pixi.js';
+import type { CellValue } from '@/types';
+import { CELL_GAP, CELL_SIZE, GRID_COLS, GRID_OFFSET_X, GRID_OFFSET_Y, GRID_ROWS } from '@/constants';
+import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import { Cell } from './Cell';
-import type { GridData } from '../types';
-import { GRID_COLS, GRID_ROWS, CELL_SIZE, GUTTER } from '../constants';
 
-export class Grid extends Container {
+export class Grid {
   private cells: Cell[] = [];
-  private correctIndices: Set<number> = new Set();
-  private consumedCorrect = 0;
-  private consumedWrong = 0;
+  private correctIndices = new Set<number>();
+  private _totalCorrect = 0;
+  private _totalWrong = 0;
+  private _consumedCorrect = 0;
+  private _consumedWrong = 0;
 
-  constructor() {
-    super();
-
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) {
-        const cell = new Cell();
-        cell.x = col * (CELL_SIZE + GUTTER);
-        cell.y = row * (CELL_SIZE + GUTTER);
+  constructor(values: CellValue[], isCorrectFn: (v: CellValue) => boolean) {
+    for (let row = 0; row < GRID_ROWS; row += 1) {
+      for (let col = 0; col < GRID_COLS; col += 1) {
+        const idx = row * GRID_COLS + col;
+        const cell = new Cell(col, row, values[idx]);
         this.cells.push(cell);
-        this.addChild(cell);
+        if (isCorrectFn(values[idx])) {
+          this.correctIndices.add(idx);
+          this._totalCorrect += 1;
+        } else {
+          this._totalWrong += 1;
+        }
       }
     }
   }
 
-  populate(data: GridData): void {
-    this.correctIndices = new Set(data.correctIndices);
-    this.consumedCorrect = 0;
-    this.consumedWrong = 0;
-
-    for (let i = 0; i < this.cells.length; i++) {
-      const cell = this.cells[i];
-      cell.setValue(i < data.cells.length ? data.cells[i] : '');
-      cell.setState('normal');
-    }
+  get totalCorrect(): number {
+    return this._totalCorrect;
   }
 
-  getCellAt(col: number, row: number): Cell | undefined {
-    const index = this.getIndex(col, row);
-    return this.cells[index];
+  get totalWrong(): number {
+    return this._totalWrong;
+  }
+
+  get correctEaten(): number {
+    return this._consumedCorrect;
+  }
+
+  get wrongEaten(): number {
+    return this._consumedWrong;
+  }
+
+  private getIndex(col: number, row: number): number {
+    return row * GRID_COLS + col;
+  }
+
+  getCellAt(col: number, row: number): Cell | null {
+    return this.cells[this.getIndex(col, row)] ?? null;
+  }
+
+  isCorrectCell(col: number, row: number): boolean {
+    return this.correctIndices.has(this.getIndex(col, row));
+  }
+
+  toggleSus(col: number, row: number): void {
+    const cell = this.getCellAt(col, row);
+    cell?.toggleSus();
   }
 
   consumeCell(col: number, row: number): boolean {
-    const index = this.getIndex(col, row);
-    const cell = this.cells[index];
-    if (!cell || cell.state === 'consumed') {
+    const idx = this.getIndex(col, row);
+    const cell = this.cells[idx];
+    if (!cell || cell.state === 'consumed' || cell.state === 'broken') {
       return false;
     }
-
-    const isCorrect = this.correctIndices.has(index);
-
-    if (isCorrect) {
-      cell.flash('correct');
-      this.consumedCorrect++;
+    const correct = this.correctIndices.has(idx);
+    cell.clearSus();
+    if (correct) {
+      this._consumedCorrect += 1;
+      cell.flash('correct', 'consumed');
     } else {
-      cell.flash('error');
-      this.consumedWrong++;
+      cell.flash('error', 'consumed');
     }
-
-    return isCorrect;
+    return correct;
   }
 
-  isCleared(): boolean {
-    return this.consumedCorrect >= this.correctIndices.size;
+  impostorBreakCell(col: number, row: number): void {
+    const idx = this.getIndex(col, row);
+    const cell = this.cells[idx];
+    if (!cell || cell.state === 'consumed' || cell.state === 'broken') {
+      return;
+    }
+    if (cell.state === 'correct_flash' || cell.state === 'error_flash') {
+      return;
+    }
+    cell.clearSus();
+    this._consumedWrong += 1;
+    cell.flash('correct', 'broken');
   }
 
-  getCol(index: number): number {
-    return ((index % GRID_COLS) + GRID_COLS) % GRID_COLS;
+  impostorEatCorrectCell(col: number, row: number): void {
+    const idx = this.getIndex(col, row);
+    const cell = this.cells[idx];
+    if (!cell || cell.state === 'consumed') {
+      return;
+    }
+    cell.clearSus();
+    cell.flash('error', 'consumed');
   }
 
-  getRow(index: number): number {
-    return ((Math.floor(index / GRID_COLS) % GRID_ROWS) + GRID_ROWS) % GRID_ROWS;
+  repairCell(col: number, row: number): void {
+    const cell = this.getCellAt(col, row);
+    if (!cell || cell.state !== 'broken') {
+      return;
+    }
+    this._consumedWrong = Math.max(0, this._consumedWrong - 1);
+    cell.setState('normal');
   }
 
-  getIndex(col: number, row: number): number {
-    const wrappedCol = ((col % GRID_COLS) + GRID_COLS) % GRID_COLS;
-    const wrappedRow = ((row % GRID_ROWS) + GRID_ROWS) % GRID_ROWS;
-    return wrappedRow * GRID_COLS + wrappedCol;
+  getBrokenPositions(): Array<{ col: number; row: number }> {
+    const out: Array<{ col: number; row: number }> = [];
+    for (let i = 0; i < this.cells.length; i += 1) {
+      if (this.cells[i].state === 'broken') {
+        out.push({ col: i % GRID_COLS, row: Math.floor(i / GRID_COLS) });
+      }
+    }
+    return out;
   }
 
-  highlightCell(col: number, row: number): void {
+  setHighlighted(col: number, row: number): void {
+    for (const cell of this.cells) {
+      if (cell.state === 'highlighted') {
+        cell.setState('normal');
+      }
+    }
     const cell = this.getCellAt(col, row);
     if (cell && cell.state === 'normal') {
       cell.setState('highlighted');
     }
   }
 
-  toggleSusCell(col: number, row: number): void {
-    const cell = this.getCellAt(col, row);
-    if (cell && cell.state !== 'consumed') {
-      cell.toggleSus();
-    }
+  isCleared(): boolean {
+    return this._consumedCorrect >= this._totalCorrect;
   }
 
-  unhighlightCell(col: number, row: number): void {
-    const cell = this.getCellAt(col, row);
-    if (cell && cell.state === 'highlighted') {
-      cell.setState('normal');
-    }
+  isAllWrongCleared(): boolean {
+    return this._consumedWrong >= this._totalWrong;
+  }
+
+  cellScreenPos(col: number, row: number): { x: number; y: number } {
+    return {
+      x: GRID_OFFSET_X + col * (CELL_SIZE + CELL_GAP),
+      y: GRID_OFFSET_Y + row * (CELL_SIZE + CELL_GAP),
+    };
   }
 
   update(dt: number): void {
@@ -105,72 +153,10 @@ export class Grid extends Container {
     }
   }
 
-  get totalCorrect(): number {
-    return this.correctIndices.size;
-  }
-
-  get correctEaten(): number {
-    return this.consumedCorrect;
-  }
-
-  get totalWrong(): number {
-    return this.cells.length - this.correctIndices.size;
-  }
-
-  get wrongEaten(): number {
-    return this.consumedWrong;
-  }
-
-  isCorrectCell(col: number, row: number): boolean {
-    const index = this.getIndex(col, row);
-    return this.correctIndices.has(index);
-  }
-
-  /**
-   * Consume a cell with an explicit flash type (for impostor mode where
-   * correct/error flash colors are inverted).
-   */
-  consumeCellWithFlash(col: number, row: number, flashType: 'correct' | 'error'): void {
-    const index = this.getIndex(col, row);
-    const cell = this.cells[index];
-    if (!cell || cell.state === 'consumed') return;
-
-    const isCorrect = this.correctIndices.has(index);
-    if (isCorrect) {
-      this.consumedCorrect++;
-    } else {
-      this.consumedWrong++;
+  draw(rr: RoughRenderer): void {
+    for (const cell of this.cells) {
+      const { x, y } = this.cellScreenPos(cell.col, cell.row);
+      cell.draw(rr, x, y, CELL_SIZE, CELL_SIZE);
     }
-
-    cell.flash(flashType);
   }
-
-  isAllWrongCleared(): boolean {
-    return this.consumedWrong >= this.totalWrong;
-  }
-
-  getUnconsumedCorrectPositions(): Array<{ col: number; row: number }> {
-    const positions: Array<{ col: number; row: number }> = [];
-    for (const index of this.correctIndices) {
-      const cell = this.cells[index];
-      if (cell && cell.state !== 'consumed') {
-        positions.push({ col: this.getCol(index), row: this.getRow(index) });
-      }
-    }
-    return positions;
-  }
-
-  getUnconsumedWrongPositions(): Array<{ col: number; row: number }> {
-    const positions: Array<{ col: number; row: number }> = [];
-    for (let i = 0; i < this.cells.length; i++) {
-      if (!this.correctIndices.has(i)) {
-        const cell = this.cells[i];
-        if (cell && cell.state !== 'consumed') {
-          positions.push({ col: this.getCol(i), row: this.getRow(i) });
-        }
-      }
-    }
-    return positions;
-  }
-
 }

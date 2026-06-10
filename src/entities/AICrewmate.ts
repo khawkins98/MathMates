@@ -1,283 +1,169 @@
-import { Container } from 'pixi.js';
-import {
-  AI_MOVE_INTERVAL_BASE,
-  AI_MOVE_INTERVAL_MIN,
-  AI_CHASE_DISTANCE,
-  AI_DWELL_DURATION,
-} from '../constants';
-import { pickRandom } from '../utils';
-import { gridToPixel, manhattan, pickEdgeCell, getValidAdjacentCells } from './gridHelpers';
+import { GRID_COLS, GRID_ROWS } from '@/constants';
+import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import type { Grid } from './Grid';
 
-export interface AIPersonality {
+interface AIPersonality {
   name: string;
-  colorIndex: number; // index into CREW_COLORS
-  speedOffset: number; // ms added to base move interval (negative = faster)
-  seekCorrect: number; // weight 0-1
-  seekWrong: number; // weight 0-1
-  random: number; // weight 0-1
-  chasePlayer: number; // weight 0-1
+  colour: string;
+  moveInterval: number;
+  dwellDuration: number;
+  seekBroken: number;
 }
 
-export const AI_PERSONALITIES: AIPersonality[] = [
-  {
-    name: 'Cautious',
-    colorIndex: 1, // blue
-    speedOffset: 200,
-    seekCorrect: 0.50,
-    seekWrong: 0.20,
-    random: 0.20,
-    chasePlayer: 0.10,
-  },
-  {
-    name: 'Wanderer',
-    colorIndex: 2, // green
-    speedOffset: 0,
-    seekCorrect: 0.30,
-    seekWrong: 0.40,
-    random: 0.25,
-    chasePlayer: 0.05,
-  },
-  {
-    name: 'Suspicious',
-    colorIndex: 4, // orange
-    speedOffset: -200,
-    seekCorrect: 0.40,
-    seekWrong: 0.20,
-    random: 0.15,
-    chasePlayer: 0.25,
-  },
+const PERSONALITIES: AIPersonality[] = [
+  { name: 'diligent', colour: '#ffd93d', moveInterval: 1100, dwellDuration: 3500, seekBroken: 0.55 },
+  { name: 'wanderer', colour: '#6bcb77', moveInterval: 1300, dwellDuration: 4500, seekBroken: 0.25 },
+  { name: 'keen', colour: '#c77dff', moveInterval: 900, dwellDuration: 3000, seekBroken: 0.70 },
 ];
 
-/**
- * AI-controlled crewmate with personality-driven behavior.
- * Used as the enemy in Impostor Mode.
- */
-export class AICrewmate extends Container {
-  private _gridCol = 0;
-  private _gridRow = 0;
-  private moveTimer = 0;
-  private moveInterval: number;
+function shortestWrappedStep(from: number, to: number, size: number): -1 | 0 | 1 {
+  const raw = to - from;
+  const wrappedForward = (to - from + size) % size;
+  const wrappedBackward = (from - to + size) % size;
+  if (raw === 0) {
+    return 0;
+  }
+  if (wrappedForward <= wrappedBackward) {
+    return 1;
+  }
+  return -1;
+}
+
+function wrappedDistance(from: number, to: number, size: number): number {
+  const diff = Math.abs(to - from);
+  return Math.min(diff, size - diff);
+}
+
+export class AICrewmate {
+  private _col: number;
+  private _row: number;
   private _alive = true;
-  private personality: AIPersonality;
-
-  // Dwell mechanic
+  private moveTimer = 0;
   private dwellTimer = 0;
-  private _isDwelling = false;
-  private dwellDuration: number;
-  private dwellElapsed = 0; // for pulse animation
+  private dwellElapsed = 0;
+  private isDwelling = false;
+  readonly personality: AIPersonality;
+  private elapsed = 0;
 
-  constructor(
-    personality: AIPersonality,
-    playerCol: number,
-    playerRow: number,
-    difficulty: number,
-  ) {
-    super();
-    this.personality = personality;
-    this.moveInterval = this.calcMoveInterval(difficulty) + personality.speedOffset;
-    this.dwellDuration = this.moveInterval * AI_DWELL_DURATION;
-    this.spawnAtEdge(playerCol, playerRow);
+  constructor(personalityIndex: number, startCol: number, startRow: number) {
+    this.personality = PERSONALITIES[personalityIndex % PERSONALITIES.length];
+    this._col = startCol;
+    this._row = startRow;
   }
 
-  private calcMoveInterval(difficulty: number): number {
-    const t = Math.min((difficulty - 1) / 4, 1);
-    return AI_MOVE_INTERVAL_BASE + (AI_MOVE_INTERVAL_MIN - AI_MOVE_INTERVAL_BASE) * t;
+  get col(): number {
+    return this._col;
   }
 
-  private spawnAtEdge(playerCol: number, playerRow: number): void {
-    const chosen = pickEdgeCell(playerCol, playerRow);
-    this._gridCol = chosen.col;
-    this._gridRow = chosen.row;
-    this.updatePixelPosition();
-  }
-
-  spawnAt(col: number, row: number): void {
-    this._gridCol = col;
-    this._gridRow = row;
-    this.updatePixelPosition();
-  }
-
-  respawnAtEdge(playerCol: number, playerRow: number): void {
-    this.spawnAtEdge(playerCol, playerRow);
-    this.moveTimer = 0;
-    this.cancelDwell();
-  }
-
-  private updatePixelPosition(): void {
-    const { x, y } = gridToPixel(this._gridCol, this._gridRow);
-    this.x = x;
-    this.y = y;
-  }
-
-  get gridCol(): number {
-    return this._gridCol;
-  }
-
-  get gridRow(): number {
-    return this._gridRow;
+  get row(): number {
+    return this._row;
   }
 
   get alive(): boolean {
     return this._alive;
   }
 
-  get personalityConfig(): AIPersonality {
-    return this.personality;
+  spawnAt(col: number, row: number): void {
+    this._col = col;
+    this._row = row;
   }
 
   eliminate(): void {
     this._alive = false;
-    this.cancelDwell();
   }
 
-  checkCollision(playerCol: number, playerRow: number): boolean {
-    return this._alive && this._gridCol === playerCol && this._gridRow === playerRow;
-  }
+  update(dt: number, grid: Grid): boolean {
+    if (!this._alive) {
+      return false;
+    }
+    this.elapsed += dt;
 
-  private cancelDwell(): void {
-    this._isDwelling = false;
-    this.dwellTimer = 0;
-    this.dwellElapsed = 0;
-    this.scale.set(1);
-  }
-
-  /**
-   * Returns true if the AI completed dwelling on an unconsumed correct cell.
-   * Caller should handle the consumption via grid.consumeCellWithFlash.
-   *
-   * When playerCol/playerRow are null, the crewmate will not chase the player.
-   */
-  update(
-    dt: number,
-    grid: Grid,
-    playerCol: number | null,
-    playerRow: number | null,
-  ): boolean {
-    if (!this._alive) return false;
-
-    // Dwell pulse animation
-    if (this._isDwelling) {
+    if (this.isDwelling) {
       this.dwellElapsed += dt;
-      const pulse = 1.0 + 0.1 * Math.sin(this.dwellElapsed * 0.01);
-      this.scale.set(pulse);
-
       this.dwellTimer += dt;
-      if (this.dwellTimer >= this.dwellDuration) {
-        // Dwell complete — consume signal
-        this.cancelDwell();
+      if (this.dwellTimer >= this.personality.dwellDuration) {
+        this.isDwelling = false;
+        this.dwellTimer = 0;
         return true;
-      }
-      // Move tick can interrupt dwell — crewmate moves away, cancelling it
-      this.moveTimer += dt;
-      if (this.moveTimer >= this.moveInterval) {
-        this.moveTimer -= this.moveInterval;
-        this.cancelDwell();
-        const target = this.pickMoveTarget(grid, playerCol, playerRow);
-        if (target) {
-          this._gridCol = target.col;
-          this._gridRow = target.row;
-          this.updatePixelPosition();
-          this.checkAndStartDwell(grid);
-        }
       }
       return false;
     }
 
     this.moveTimer += dt;
-    if (this.moveTimer < this.moveInterval) return false;
-    this.moveTimer -= this.moveInterval;
+    if (this.moveTimer < this.personality.moveInterval) {
+      return false;
+    }
+    this.moveTimer -= this.personality.moveInterval;
 
-    const target = this.pickMoveTarget(grid, playerCol, playerRow);
-
+    const target = this.pickTarget(grid);
     if (target) {
-      this._gridCol = target.col;
-      this._gridRow = target.row;
-      this.updatePixelPosition();
+      this._col = target.col;
+      this._row = target.row;
+    }
 
-      // Check if we landed on an unconsumed correct cell — start dwelling
-      if (this.checkAndStartDwell(grid)) {
-        return false; // dwelling started, no consume yet
-      }
+    const cell = grid.getCellAt(this._col, this._row);
+    if (cell && cell.state === 'broken') {
+      this.isDwelling = true;
+      this.dwellTimer = 0;
+      this.dwellElapsed = 0;
     }
 
     return false;
   }
 
-  private checkAndStartDwell(grid: Grid): boolean {
-    if (grid.isCorrectCell(this._gridCol, this._gridRow)) {
-      const cell = grid.getCellAt(this._gridCol, this._gridRow);
-      if (cell && cell.state !== 'consumed') {
-        this._isDwelling = true;
-        this.dwellTimer = 0;
-        this.dwellElapsed = 0;
-        return true;
-      }
+  private pickTarget(grid: Grid): { col: number; row: number } {
+    const broken = grid.getBrokenPositions();
+    if (broken.length > 0 && Math.random() < this.personality.seekBroken) {
+      return this.stepToward(broken);
     }
-    return false;
+    return this.randomAdjacent();
   }
 
-  private pickMoveTarget(
-    grid: Grid,
-    playerCol: number | null,
-    playerRow: number | null,
-  ): { col: number; row: number } | null {
-    const roll = Math.random();
-    const { seekWrong, random, chasePlayer } = this.personality;
-
-    if (roll < random) {
-      return this.randomAdjacentMove();
-    } else if (roll < random + chasePlayer) {
-      if (playerCol != null && playerRow != null) {
-        const dist = manhattan(this._gridCol, this._gridRow, playerCol, playerRow);
-        if (dist <= AI_CHASE_DISTANCE) {
-          return this.stepToward(playerCol, playerRow);
-        }
-      }
-      return this.seekNearest(grid.getUnconsumedCorrectPositions());
-    } else if (roll < random + chasePlayer + seekWrong) {
-      // Crewmates only eat correct cells — redirect to correct-seeking
-      return this.seekNearest(grid.getUnconsumedCorrectPositions()) ?? this.randomAdjacentMove();
-    } else {
-      // seekCorrect (remaining weight)
-      return this.seekNearest(grid.getUnconsumedCorrectPositions());
-    }
-  }
-
-  private randomAdjacentMove(): { col: number; row: number } | null {
-    const valid = getValidAdjacentCells(this._gridCol, this._gridRow);
-    return valid.length > 0 ? pickRandom(valid) : null;
-  }
-
-  private stepToward(targetCol: number, targetRow: number): { col: number; row: number } | null {
-    const valid = getValidAdjacentCells(this._gridCol, this._gridRow);
-    if (valid.length === 0) return null;
-
-    let best = valid[0];
-    let bestDist = manhattan(best.col, best.row, targetCol, targetRow);
-    for (let i = 1; i < valid.length; i++) {
-      const d = manhattan(valid[i].col, valid[i].row, targetCol, targetRow);
-      if (d < bestDist) {
-        bestDist = d;
-        best = valid[i];
-      }
-    }
-    return best;
-  }
-
-  private seekNearest(targets: Array<{ col: number; row: number }>): { col: number; row: number } | null {
-    if (targets.length === 0) return null;
-
-    let nearest = targets[0];
-    let bestDist = manhattan(this._gridCol, this._gridRow, nearest.col, nearest.row);
-    for (let i = 1; i < targets.length; i++) {
-      const d = manhattan(this._gridCol, this._gridRow, targets[i].col, targets[i].row);
-      if (d < bestDist) {
-        bestDist = d;
-        nearest = targets[i];
+  private stepToward(targets: Array<{ col: number; row: number }>): { col: number; row: number } {
+    let best = targets[0];
+    let bestScore = wrappedDistance(this._col, best.col, GRID_COLS) + wrappedDistance(this._row, best.row, GRID_ROWS);
+    for (const target of targets) {
+      const score = wrappedDistance(this._col, target.col, GRID_COLS) + wrappedDistance(this._row, target.row, GRID_ROWS);
+      if (score < bestScore) {
+        best = target;
+        bestScore = score;
       }
     }
 
-    return this.stepToward(nearest.col, nearest.row);
+    const dx = wrappedDistance(this._col, best.col, GRID_COLS);
+    const dy = wrappedDistance(this._row, best.row, GRID_ROWS);
+    if (dx >= dy && dx > 0) {
+      const step = shortestWrappedStep(this._col, best.col, GRID_COLS);
+      return { col: (this._col + step + GRID_COLS) % GRID_COLS, row: this._row };
+    }
+    if (dy > 0) {
+      const step = shortestWrappedStep(this._row, best.row, GRID_ROWS);
+      return { col: this._col, row: (this._row + step + GRID_ROWS) % GRID_ROWS };
+    }
+    return { col: this._col, row: this._row };
+  }
+
+  private randomAdjacent(): { col: number; row: number } {
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
+    const pick = dirs[Math.floor(Math.random() * dirs.length)];
+    return {
+      col: (this._col + pick.dc + GRID_COLS) % GRID_COLS,
+      row: (this._row + pick.dr + GRID_ROWS) % GRID_ROWS,
+    };
+  }
+
+  draw(rr: RoughRenderer, grid: Grid): void {
+    if (!this._alive) {
+      return;
+    }
+    const { x, y } = grid.cellScreenPos(this._col, this._row);
+    const pulse = this.isDwelling ? 1 + 0.15 * Math.sin(this.dwellElapsed * 0.01) : 1;
+    const seed = Math.floor(this.elapsed / 300);
+    rr.crewmate(x + 40, y + 54, this.personality.colour, seed, 0.72 * pulse);
   }
 }

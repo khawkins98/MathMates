@@ -1,59 +1,83 @@
-import { Application, CanvasRendererTextSystem, CanvasTextPipe, CanvasTextSystem, extensions } from 'pixi.js';
-import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '@/constants';
+import './style.css';
+import { AudioManager } from '@/audio/AudioManager';
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+import { GameLoop } from '@/core/GameLoop';
 import { SceneManager } from '@/core/SceneManager';
-import { PixelDisplay } from '@/core/PixelDisplay';
+import { RoughRenderer } from '@/rendering/RoughRenderer';
+import { BriefingScene } from '@/scenes/BriefingScene';
+import { CompleteScene } from '@/scenes/CompleteScene';
+import { GameOverScene } from '@/scenes/GameOverScene';
+import { GameScene } from '@/scenes/GameScene';
+import { SelectScene } from '@/scenes/SelectScene';
+import { TitleScene } from '@/scenes/TitleScene';
+import { UIKitScene } from '@/scenes/UIKitScene';
 
-// PixiJS v8 registers render-pipe extensions via module-level side effects in
-// scene/text/init.mjs, which is only imported by Text.mjs.  In a production
-// Vite build, Text.mjs lands in a dynamic scene chunk that loads *after*
-// app.init() — too late for the renderer's _addPipes() snapshot.  Registering
-// here forces them into the static bundle so they are queued before the
-// WebGL/WebGPU renderer calls handleByNamedList() during initialisation.
-extensions.add(CanvasRendererTextSystem, CanvasTextSystem, CanvasTextPipe);
+const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+const dpr = window.devicePixelRatio || 1;
+canvas.width = CANVAS_WIDTH * dpr;
+canvas.height = CANVAS_HEIGHT * dpr;
 
-async function init() {
-  const app = new Application();
-  await app.init({
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
-    backgroundColor: COLORS.DEEP_SPACE,
-    antialias: false,
-    roundPixels: true,
-    // Match device pixel ratio so text renders at native retina density.
-    // PixiJS keeps the logical coordinate space at GAME_WIDTH×GAME_HEIGHT;
-    // only the internal canvas bitmap doubles (or triples) in size.
-    resolution: window.devicePixelRatio || 1,
-  });
-
-  const container = document.getElementById('app');
-  if (!container) {
-    throw new Error('Missing #app element in document');
+function applyScale(): void {
+  const aspect = CANVAS_WIDTH / CANVAS_HEIGHT;
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  let cssW: number;
+  let cssH: number;
+  if (winW / winH > aspect) {
+    cssH = winH;
+    cssW = Math.round(winH * aspect);
+  } else {
+    cssW = winW;
+    cssH = Math.round(winW / aspect);
   }
-  container.appendChild(app.canvas);
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+}
+window.addEventListener('resize', applyScale);
+applyScale();
 
-  // PixelDisplay handles viewport CSS scaling and optionally routes rendering
-  // through a low-res RenderTexture for a chunky-pixel look.
-  //
-  // Tuning options (uncomment to activate):
-  //   filterSize: 2      → PixelateFilter post-pass, 2×2 blocks (community standard, subtle)
-  //   filterSize: 4      → PixelateFilter post-pass, 4×4 blocks (chunky retro)
-  //   pixelScale: 2      → renders at 260×190, upscaled 2× (true low-res render)
-  //   integerScaling     → CSS scale snapped to whole multiples (perfect alignment)
-  //   eightBitSteps: 6   → colour quantise to 216 colours (6 levels/channel)
-  //   eightBitSteps: 4   → colour quantise to 64 colours (4 levels/channel, more dramatic)
-  const display = new PixelDisplay(app, {
-    logicalWidth: GAME_WIDTH,
-    logicalHeight: GAME_HEIGHT,
-    // filterSize: 2,
-    // pixelScale: 2,   ← renders at half-res; fonts below fontSize:14 blur badly
-    integerScaling: true,
-    eightBitSteps: 6,
+const ctx = canvas.getContext('2d');
+if (!ctx) {
+  throw new Error('Canvas 2D context not available');
+}
+// Scale all drawing commands to match the device pixel ratio so the canvas
+// is sharp on HiDPI / Retina displays. All scene drawing uses logical
+// CANVAS_WIDTH × CANVAS_HEIGHT coordinates — this scale is transparent to them.
+ctx.scale(dpr, dpr);
+
+async function startGame(): Promise<void> {
+  await Promise.all([
+    document.fonts.load("16px 'Fredoka One'"),
+    document.fonts.load("16px 'Press Start 2P'"),
+  ]).catch(() => { /* fonts may not be available offline — continue anyway */ });
+
+  const manager = new SceneManager(canvas, ctx!);
+  const rr = new RoughRenderer(ctx!);
+  const audio = new AudioManager();
+
+  manager.register('TITLE', new TitleScene(manager));
+  manager.register('SELECT', new SelectScene(manager));
+  manager.register('UIKIT', new UIKitScene(manager, rr));
+  manager.register('BRIEFING', new BriefingScene(manager));
+  manager.register('GAME', new GameScene(manager, rr, audio));
+  manager.register('COMPLETE', new CompleteScene(manager));
+  manager.register('GAME_OVER', new GameOverScene(manager));
+
+  manager.goto('TITLE');
+
+  if (import.meta.env.DEV) {
+    // Dev/test hook: lets automated browser tests inspect scene state
+    // (e.g. read the grid to script a full playthrough). Stripped from
+    // production builds by Vite's dead-code elimination.
+    (window as unknown as Record<string, unknown>).__mm = { manager };
+  }
+
+  const loop = new GameLoop((dt) => {
+    manager.update(dt);
+    ctx!.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    manager.draw();
   });
-
-  // Boot scene manager — pass display.gameContainer so scenes render through
-  // the pixel display pipeline rather than directly onto app.stage.
-  const sceneManager = new SceneManager(app, display.gameContainer);
-  sceneManager.start();
+  loop.start();
 }
 
-init().catch(console.error);
+startGame();

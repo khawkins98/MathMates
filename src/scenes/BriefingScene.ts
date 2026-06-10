@@ -1,258 +1,176 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { Scene } from '@/core/Scene';
-import { SceneManager } from '@/core/SceneManager';
-import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
-import { Easing } from '@/core/Easing';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, COUNTDOWN_STEP_MS, STARTING_LIVES, PIXEL_FONT } from '@/constants';
-import type { StageDefinition, GameMode } from '@/types';
+import type { Scene } from '@/types';
+import type { SceneManager } from '@/core/SceneManager';
+import { CANVAS_WIDTH } from '@/constants';
+import { COLOURS } from '@/rendering/colours';
+import { drawSpaceBackground, drawOutlinedText, drawPanel, makeStars, type Star } from '@/rendering/drawHelpers';
+import { SCENARIO_REGISTRY } from '@/scenarios';
+import { STAGES } from '@/stages';
+import type { GameMode, ScenarioDefinition } from '@/types';
+import type { MissionParams } from './sceneParams';
 
-interface BriefingData {
-  stage: StageDefinition;
-  missionIndex: number;
-  mode?: GameMode;
+function isMissionParams(value: unknown): value is MissionParams {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Partial<MissionParams>;
+  return typeof candidate.stageId === 'string'
+    && typeof candidate.stageIndex === 'number'
+    && typeof candidate.scenarioIndex === 'number'
+    && (candidate.mode === 'crew' || candidate.mode === 'impostor');
 }
 
-const enum CountdownPhase {
-  Rule,
-  Three,
-  Two,
-  One,
-  Go,
-  Done,
-}
-
-export class BriefingScene extends Scene {
+export class BriefingScene implements Scene {
   private manager: SceneManager;
-  private data: BriefingData | null = null;
-  private phase: CountdownPhase = CountdownPhase.Rule;
-  private phaseElapsed = 0;
-  private countdownText: Text | null = null;
-  private ruleContainer: Container | null = null;
-  private ruleDisplayTime = 2500; // ms to show rule before countdown starts
+  private mission: MissionParams | null = null;
+  private scenario: ScenarioDefinition | null = null;
+  private countdownMs = 3000;
+  private started = false;
+  private stars: Star[] = makeStars(50);
 
   constructor(manager: SceneManager) {
-    super();
     this.manager = manager;
   }
 
-  enter(data?: unknown): void {
-    this.data = data as BriefingData;
-    if (!this.data) return;
-
-    this.phase = CountdownPhase.Rule;
-    this.phaseElapsed = 0;
-
-    // Semi-transparent dark overlay
-    const overlay = new Graphics();
-    overlay.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill({ color: 0x000000, alpha: 0.75 });
-    this.root.addChild(overlay);
-
-    // Rule container (shown during Rule phase)
-    this.ruleContainer = new Container();
-    this.root.addChild(this.ruleContainer);
-
-    const mode = this.data.mode ?? 'crew';
-    const isImpostor = mode === 'impostor';
-    const accentColor = isImpostor ? COLORS.CREW_RED : COLORS.VISOR_CYAN;
-
-    // Stage name
-    const nameStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 18,
-      fontWeight: 'bold',
-      fill: accentColor,
-      align: 'center',
-    });
-    const nameText = new Text({
-      text: `${this.data.stage.name} - Mission ${this.data.missionIndex + 1}`,
-      style: nameStyle,
-    });
-    nameText.anchor.set(0.5);
-    nameText.x = GAME_WIDTH / 2;
-    nameText.y = GAME_HEIGHT / 2 - 80;
-    this.ruleContainer.addChild(nameText);
-
-    // Rule text — invert for impostor mode
-    const baseRule = this.data.stage.getRuleText(this.data.missionIndex);
-    const ruleDisplay = isImpostor
-      ? `Sabotage! Eat everything that ISN'T:\n${baseRule}`
-      : baseRule;
-    const ruleStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: isImpostor ? 18 : 22,
-      fontWeight: 'bold',
-      fill: COLORS.STAR_WHITE,
-      align: 'center',
-      wordWrap: true,
-      wordWrapWidth: GAME_WIDTH - 80,
-    });
-    const ruleText = new Text({
-      text: ruleDisplay,
-      style: ruleStyle,
-    });
-    ruleText.anchor.set(0.5);
-    ruleText.x = GAME_WIDTH / 2;
-    ruleText.y = GAME_HEIGHT / 2 - 20;
-    this.ruleContainer.addChild(ruleText);
-
-    // Flavor text for impostor mode
-    if (isImpostor) {
-      const flavorStyle = new TextStyle({
-        fontFamily: PIXEL_FONT,
-        fontSize: 12,
-        fill: COLORS.CREW_RED,
-        align: 'center',
-      });
-      const flavorText = new Text({
-        text: 'You are the impostor. Eat WRONG answers to sabotage!\nCatch crewmates on wrong cells to eject them!',
-        style: flavorStyle,
-      });
-      flavorText.anchor.set(0.5);
-      flavorText.x = GAME_WIDTH / 2;
-      flavorText.y = GAME_HEIGHT / 2 + 25;
-      this.ruleContainer.addChild(flavorText);
+  enter(params?: Record<string, unknown>): void {
+    if (!isMissionParams(params)) {
+      this.manager.goto('SELECT');
+      return;
     }
-
-    // Mini crewmate row (showing life count)
-    const crewRow = new Container();
-    const crewSpacing = 16;
-    const totalWidth = STARTING_LIVES * crewSpacing;
-    const startX = (GAME_WIDTH - totalWidth) / 2;
-    for (let i = 0; i < STARTING_LIVES; i++) {
-      const mini = createMiniCrewmate(CREW_COLORS[i % CREW_COLORS.length]);
-      mini.x = startX + i * crewSpacing;
-      mini.y = 0;
-      crewRow.addChild(mini);
+    const stage = STAGES[params.stageIndex];
+    const scenarioId = stage?.scenarios[params.scenarioIndex];
+    const scenario = scenarioId ? SCENARIO_REGISTRY.get(scenarioId) : undefined;
+    if (!stage || !scenario) {
+      this.manager.goto('SELECT');
+      return;
     }
-    crewRow.x = 0;
-    crewRow.y = GAME_HEIGHT / 2 + 40;
-    this.ruleContainer.addChild(crewRow);
-
-    // Countdown text (hidden initially)
-    const countdownStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 72,
-      fontWeight: 'bold',
-      fill: COLORS.STAR_WHITE,
-      align: 'center',
-    });
-    this.countdownText = new Text({ text: '', style: countdownStyle });
-    this.countdownText.anchor.set(0.5);
-    this.countdownText.x = GAME_WIDTH / 2;
-    this.countdownText.y = GAME_HEIGHT / 2;
-    this.countdownText.visible = false;
-    this.root.addChild(this.countdownText);
+    this.mission = { ...params };
+    this.scenario = scenario;
+    this.countdownMs = 3000;
+    this.started = false;
+    this.manager.input.setEnabled(true);
   }
+
+  exit(): void {}
 
   update(dt: number): void {
-    if (!this.data || !this.countdownText) return;
+    if (!this.mission || !this.scenario || this.started) {
+      return;
+    }
 
-    this.phaseElapsed += dt;
+    let action = this.manager.input.shift();
+    while (action) {
+      if (action === 'back' || action === 'pause') {
+        this.manager.goto('SELECT');
+        return;
+      }
+      if (action === 'eat' || action === 'confirm') {
+        this.startMission();
+        return;
+      }
+      action = this.manager.input.shift();
+    }
 
-    switch (this.phase) {
-      case CountdownPhase.Rule:
-        if (this.phaseElapsed >= this.ruleDisplayTime) {
-          this.advancePhase();
-        }
-        break;
-
-      case CountdownPhase.Three:
-      case CountdownPhase.Two:
-      case CountdownPhase.One:
-        this.animateCountdownNumber(dt);
-        if (this.phaseElapsed >= COUNTDOWN_STEP_MS) {
-          this.advancePhase();
-        }
-        break;
-
-      case CountdownPhase.Go:
-        this.animateCountdownNumber(dt);
-        if (this.phaseElapsed >= COUNTDOWN_STEP_MS) {
-          this.advancePhase();
-        }
-        break;
-
-      case CountdownPhase.Done:
-        // Transition has been triggered
-        break;
+    this.countdownMs -= dt;
+    if (this.countdownMs <= 0) {
+      this.startMission();
     }
   }
 
-  private animateCountdownNumber(_dt: number): void {
-    if (!this.countdownText) return;
-
-    // Scale in from 2x to 1x with easing
-    const progress = Math.min(this.phaseElapsed / COUNTDOWN_STEP_MS, 1);
-    const eased = Easing.easeOutQuad(progress);
-    const scale = 2 - eased; // 2x -> 1x
-    this.countdownText.scale.set(scale);
-
-    // Fade in at start
-    this.countdownText.alpha = Math.min(progress * 4, 1);
-  }
-
-  private advancePhase(): void {
-    this.phaseElapsed = 0;
-
-    switch (this.phase) {
-      case CountdownPhase.Rule:
-        this.phase = CountdownPhase.Three;
-        if (this.ruleContainer) this.ruleContainer.visible = false;
-        if (this.countdownText) {
-          this.countdownText.visible = true;
-          this.countdownText.text = '3';
-          this.countdownText.scale.set(2);
-        }
-        this.manager.sound.countdownBeep();
-        break;
-
-      case CountdownPhase.Three:
-        this.phase = CountdownPhase.Two;
-        if (this.countdownText) {
-          this.countdownText.text = '2';
-          this.countdownText.scale.set(2);
-        }
-        this.manager.sound.countdownBeep();
-        break;
-
-      case CountdownPhase.Two:
-        this.phase = CountdownPhase.One;
-        if (this.countdownText) {
-          this.countdownText.text = '1';
-          this.countdownText.scale.set(2);
-        }
-        this.manager.sound.countdownBeep();
-        break;
-
-      case CountdownPhase.One:
-        this.phase = CountdownPhase.Go;
-        if (this.countdownText) {
-          this.countdownText.text = 'GO!';
-          this.countdownText.style.fill = COLORS.SUCCESS_GREEN;
-          this.countdownText.scale.set(2);
-        }
-        this.manager.sound.countdownGo();
-        break;
-
-      case CountdownPhase.Go:
-        this.phase = CountdownPhase.Done;
-        if (this.data) {
-          this.manager.goto('PLAYING', {
-            stage: this.data.stage,
-            missionIndex: this.data.missionIndex,
-            mode: this.data.mode ?? 'crew',
-          });
-        }
-        break;
+  private startMission(): void {
+    if (!this.mission || this.started) {
+      return;
     }
+    this.started = true;
+    this.manager.goto('GAME', this.mission as unknown as Record<string, unknown>);
   }
 
-  exit(): void {
-    this.destroyChildren();
-    this.countdownText = null;
-    this.ruleContainer = null;
-    this.data = null;
-    this.phase = CountdownPhase.Rule;
-    this.phaseElapsed = 0;
+  draw(ctx: CanvasRenderingContext2D): void {
+    const mission = this.mission;
+    const scenario = this.scenario;
+    const stage = mission ? STAGES[mission.stageIndex] : null;
+    const mode: GameMode = mission?.mode ?? 'crew';
+    const accent = mode === 'crew' ? COLOURS.SUCCESS : COLOURS.DANGER;
+    const panelFill = mode === 'crew' ? '#1a3840' : '#3a1828';
+
+    drawSpaceBackground(ctx, 3000 - this.countdownMs, this.stars);
+    drawPanel(ctx, 38, 44, 524, 310, panelFill, accent, 3);
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Mode badge
+    ctx.font = "13px 'Fredoka One', sans-serif";
+    ctx.fillStyle = accent;
+    ctx.fillText(mode === 'crew' ? 'CREW BRIEFING' : 'IMPOSTOR BRIEFING', CANVAS_WIDTH / 2, 76);
+
+    // Stage title
+    drawOutlinedText(ctx, stage ? stage.title : 'Mission', CANVAS_WIDTH / 2, 118, 24, '#f0fafa', '#080c0c', 5, "'Fredoka One', sans-serif");
+
+    // Scenario title
+    ctx.font = "20px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(scenario?.title ?? '', CANVAS_WIDTH / 2, 155);
+
+    // Rule text
+    ctx.font = "17px 'Fredoka One', sans-serif";
+    ctx.fillStyle = accent;
+    const ruleLine = mode === 'impostor' ? scenario?.impostorRuleText : scenario?.ruleText;
+    ctx.fillText(ruleLine ?? '', CANVAS_WIDTH / 2, 188);
+
+    // Briefing text (wrapped)
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#c8e0e0';
+    const body = mode === 'impostor'
+      ? 'You are the impostor! Sneak around and break every wrong answer — but leave the correct ones alone!'
+      : scenario?.briefingText ?? '';
+    this.drawWrappedText(ctx, body, CANVAS_WIDTH / 2, 232, 440, 26);
+
+    // Hint
+    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#7aa8a8';
+    ctx.fillText('Space/Enter starts early  •  Backspace returns to stage select', CANVAS_WIDTH / 2, 322);
+
+    // Countdown arc
+    const seconds = Math.max(0, Math.ceil(this.countdownMs / 1000));
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(CANVAS_WIDTH / 2, 373, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.countdownMs / 3000));
+    ctx.stroke();
+    ctx.font = "18px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(`${seconds}`, CANVAS_WIDTH / 2, 374);
+
+    ctx.restore();
+  }
+
+  private drawWrappedText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    centerX: number,
+    startY: number,
+    maxWidth: number,
+    lineHeight: number,
+  ): void {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let line = '';
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (ctx.measureText(candidate).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) {
+      lines.push(line);
+    }
+    lines.forEach((entry, index) => {
+      ctx.fillText(entry, centerX, startY + index * lineHeight);
+    });
   }
 }

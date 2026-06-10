@@ -1,44 +1,51 @@
-import { Container } from 'pixi.js';
-import { CELL_SIZE, GUTTER } from '../constants';
+import { GRID_COLS, GRID_ROWS } from '@/constants';
+import type { RoughRenderer } from '@/rendering/RoughRenderer';
+import type { Grid } from './Grid';
 
-const BOB_AMPLITUDE = 2; // pixels
-const BOB_PERIOD = 1000; // ms
+export class Player {
+  private _col: number;
+  private _row: number;
+  private bobTimer = 0;
 
-export class Player extends Container {
-  private _gridCol = 0;
-  private _gridRow = 0;
-  private bobElapsed = 0;
-  private baseY = 0;
-
-  constructor() {
-    super();
+  constructor(startCol = 0, startRow = 0) {
+    this._col = startCol;
+    this._row = startRow;
   }
 
-  get gridCol(): number {
-    return this._gridCol;
+  get col(): number {
+    return this._col;
   }
 
-  get gridRow(): number {
-    return this._gridRow;
+  get row(): number {
+    return this._row;
   }
 
-  moveTo(col: number, row: number): void {
-    this._gridCol = col;
-    this._gridRow = row;
-
-    this.x = col * (CELL_SIZE + GUTTER) + CELL_SIZE / 2;
-    this.baseY = row * (CELL_SIZE + GUTTER) + CELL_SIZE / 2;
-    this.y = this.baseY;
-  }
-
-  getGridPosition(): { col: number; row: number } {
-    return { col: this._gridCol, row: this._gridRow };
+  move(dir: 'up' | 'down' | 'left' | 'right'): void {
+    switch (dir) {
+      case 'up':
+        this._row = (this._row - 1 + GRID_ROWS) % GRID_ROWS;
+        break;
+      case 'down':
+        this._row = (this._row + 1) % GRID_ROWS;
+        break;
+      case 'left':
+        this._col = (this._col - 1 + GRID_COLS) % GRID_COLS;
+        break;
+      case 'right':
+        this._col = (this._col + 1) % GRID_COLS;
+        break;
+    }
   }
 
   update(dt: number): void {
-    this.bobElapsed += dt;
+    this.bobTimer += dt;
+  }
 
-    const phase = (this.bobElapsed / BOB_PERIOD) * Math.PI * 2;
-    this.y = this.baseY + Math.sin(phase) * BOB_AMPLITUDE;
+  draw(rr: RoughRenderer, grid: Grid, colour: string): void {
+    const { x, y } = grid.cellScreenPos(this._col, this._row);
+    const bob = Math.sin(this.bobTimer * 0.004) * 2;
+    const seed = Math.floor(this.bobTimer / 250);
+    // Anchored low in the cell so the expression text above stays readable.
+    rr.crewmate(x + 40, y + 52 + bob, colour, seed, 0.9);
   }
 }

@@ -1,53 +1,65 @@
-import type { InputAction } from '@/types';
-
-const KEY_MAP: Record<string, InputAction> = {
-  ArrowUp: 'move_up',
-  ArrowDown: 'move_down',
-  ArrowLeft: 'move_left',
-  ArrowRight: 'move_right',
-  KeyW: 'move_up',
-  KeyS: 'move_down',
-  KeyA: 'move_left',
-  KeyD: 'move_right',
-  Space: 'eat',
-  Enter: 'eat',
-  KeyX: 'sus',
-  Escape: 'pause',
-};
+export type InputAction = 'up' | 'down' | 'left' | 'right' | 'eat' | 'sus' | 'pause' | 'confirm' | 'back';
 
 export class InputManager {
   private queue: InputAction[] = [];
   private enabled = true;
 
   constructor() {
-    window.addEventListener('keydown', (e) => {
-      if (e.repeat) return;
-      if (!this.enabled) return;
-      const action = KEY_MAP[e.code];
-      if (action) {
-        e.preventDefault();
-        this.queue.push(action);
-      }
-    });
+    window.addEventListener('keydown', (e) => this.onKey(e));
   }
 
-  /** Remove and return the first queued action, or undefined if empty. */
+  private onKey(e: KeyboardEvent): void {
+    if (!this.enabled || e.repeat) {
+      return;
+    }
+    const action = this.keyToAction(e.code);
+    if (action) {
+      e.preventDefault();
+      this.queue.push(action);
+    }
+  }
+
+  private keyToAction(code: string): InputAction | null {
+    switch (code) {
+      case 'ArrowUp':
+        return 'up';
+      case 'ArrowDown':
+        return 'down';
+      case 'ArrowLeft':
+        return 'left';
+      case 'ArrowRight':
+        return 'right';
+      case 'Space':
+      case 'Enter':
+        return 'eat';
+      case 'KeyS':
+        return 'sus';
+      case 'Escape':
+        return 'pause';
+      case 'KeyZ':
+      case 'Backspace':
+        return 'back';
+      default:
+        return null;
+    }
+  }
+
   shift(): InputAction | undefined {
     return this.queue.shift();
   }
 
-  drain(): InputAction[] {
-    const actions = this.queue.slice();
-    this.queue.length = 0;
-    return actions;
-  }
-
   clear(): void {
-    this.queue.length = 0;
+    this.queue = [];
   }
 
-  setEnabled(v: boolean): void {
-    this.enabled = v;
-    if (!v) this.queue.length = 0;
+  setEnabled(on: boolean): void {
+    this.enabled = on;
+    if (!on) {
+      this.queue = [];
+    }
+  }
+
+  isEnabled(): boolean {
+    return this.enabled;
   }
 }

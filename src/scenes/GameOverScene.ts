@@ -1,163 +1,119 @@
-import { Container, Text, TextStyle } from 'pixi.js';
-import { Scene } from '@/core/Scene';
-import { SceneManager } from '@/core/SceneManager';
-import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createCrewmateSprite, CREW_COLORS } from '@/sprites/CrewmateSprite';
-import { createImpostorSprite } from '@/sprites/ImpostorSprite';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
-import type { StageDefinition, GameMode, LoseReason } from '@/types';
+import { CANVAS_WIDTH } from '@/constants';
+import type { SceneManager } from '@/core/SceneManager';
+import { COLOURS } from '@/rendering/colours';
+import { drawSpaceBackground, drawButton, makeStars, type Star } from '@/rendering/drawHelpers';
+import type { Scene } from '@/types';
+import type { GameOverSceneParams } from './sceneParams';
 
-interface GameOverData {
-  stage: StageDefinition;
-  missionIndex: number;
-  score: number;
-  mode?: GameMode;
-  loseReason?: LoseReason;
+function isGameOverParams(value: unknown): value is GameOverSceneParams {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Partial<GameOverSceneParams>;
+  return typeof candidate.score === 'number'
+    && typeof candidate.stageTitle === 'string'
+    && typeof candidate.scenarioTitle === 'string';
 }
 
-export class GameOverScene extends Scene {
+export class GameOverScene implements Scene {
   private manager: SceneManager;
-  private data: GameOverData | null = null;
+  private result: GameOverSceneParams | null = null;
+  private selectedButton = 0;
+  private stars: Star[] = makeStars(50);
   private elapsed = 0;
-  private gameOverText: Text | null = null;
-  private ghostCrewmate: Container | null = null;
-  private ghostBaseY = 0;
 
   constructor(manager: SceneManager) {
-    super();
     this.manager = manager;
   }
 
-  enter(data?: unknown): void {
-    this.data = data as GameOverData;
-    if (!this.data) return;
-
-    this.elapsed = 0;
-
-    const mode = this.data.mode ?? 'crew';
-    const isImpostor = mode === 'impostor';
-    const loseReason = this.data.loseReason ?? 'lives';
-
-    // Title text varies by mode
-    let titleLabel: string;
-    if (isImpostor) {
-      titleLabel = loseReason === 'ai_cleared' ? 'BUSTED!' : 'EJECTED!';
-    } else {
-      titleLabel = 'GAME OVER';
-    }
-
-    const titleStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 36,
-      fontWeight: 'bold',
-      fill: COLORS.CREW_RED,
-      align: 'center',
-    });
-    this.gameOverText = new Text({ text: titleLabel, style: titleStyle });
-    this.gameOverText.anchor.set(0.5);
-    this.gameOverText.x = GAME_WIDTH / 2;
-    this.gameOverText.y = 80;
-    this.root.addChild(this.gameOverText);
-
-    // Ghost sprite (crewmate or impostor depending on mode)
-    if (isImpostor) {
-      this.ghostCrewmate = createImpostorSprite();
-    } else {
-      this.ghostCrewmate = createCrewmateSprite(CREW_COLORS[0]);
-    }
-    this.ghostCrewmate.alpha = 0.25;
-    this.ghostCrewmate.x = GAME_WIDTH / 2 - 10;
-    this.ghostBaseY = GAME_HEIGHT / 2 - 20;
-    this.ghostCrewmate.y = this.ghostBaseY;
-    this.root.addChild(this.ghostCrewmate);
-
-    // Reason text for impostor mode
-    if (isImpostor) {
-      const reasonStyle = new TextStyle({
-        fontFamily: PIXEL_FONT,
-        fontSize: 12,
-        fill: COLORS.HULL_GREY,
-        align: 'center',
-      });
-      const reasonLabel = loseReason === 'ai_cleared'
-        ? 'The crew cleared all correct answers!'
-        : 'You ran out of lives!';
-      const reasonText = new Text({ text: reasonLabel, style: reasonStyle });
-      reasonText.anchor.set(0.5);
-      reasonText.x = GAME_WIDTH / 2;
-      reasonText.y = GAME_HEIGHT / 2 + 20;
-      this.root.addChild(reasonText);
-    }
-
-    // Score display
-    const scoreStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 18,
-      fill: COLORS.STAR_WHITE,
-    });
-    const scoreText = new Text({
-      text: `Score: ${this.data.score}`,
-      style: scoreStyle,
-    });
-    scoreText.anchor.set(0.5);
-    scoreText.x = GAME_WIDTH / 2;
-    scoreText.y = GAME_HEIGHT / 2 + 40;
-    this.root.addChild(scoreText);
-
-    // Buttons
-    const buttonsY = GAME_HEIGHT / 2 + 90;
-
-    // Retry button
-    const retryButton = new ButtonSprite('Retry', 130, 36, COLORS.VISOR_CYAN);
-    retryButton.x = GAME_WIDTH / 2 - 145;
-    retryButton.y = buttonsY;
-    retryButton.onClick = () => {
-      if (!this.data) return;
-      this.manager.sound.buttonClick();
-      this.manager.goto('BRIEFING', {
-        stage: this.data.stage,
-        missionIndex: this.data.missionIndex,
-        mode,
-      });
-    };
-    this.root.addChild(retryButton);
-
-    // Back to Select button
-    const backButton = new ButtonSprite('Back to Select', 130, 36, COLORS.HULL_GREY);
-    backButton.x = GAME_WIDTH / 2 + 15;
-    backButton.y = buttonsY;
-    backButton.onClick = () => {
-      this.manager.sound.buttonClick();
+  enter(params?: Record<string, unknown>): void {
+    if (!isGameOverParams(params)) {
       this.manager.goto('SELECT');
-    };
-    this.root.addChild(backButton);
+      return;
+    }
+    this.result = params;
+    this.selectedButton = 0;
   }
+
+  exit(): void {}
 
   update(dt: number): void {
     this.elapsed += dt;
-    const t = this.elapsed / 1000;
-
-    // Pulsing "GAME OVER" text: scale oscillation + slight alpha
-    if (this.gameOverText) {
-      const pulse = 1.0 + 0.05 * Math.sin(t * 2.5);
-      this.gameOverText.scale.set(pulse);
-      this.gameOverText.alpha = 0.8 + 0.2 * Math.sin(t * 1.5);
-    }
-
-    // Ghost crewmate floating upward slowly
-    if (this.ghostCrewmate) {
-      this.ghostCrewmate.y = this.ghostBaseY - (t * 8); // Slow drift up
-      this.ghostCrewmate.alpha = Math.max(0.05, 0.25 - t * 0.01); // Gradually fade
-      // Slight horizontal sway
-      this.ghostCrewmate.x = GAME_WIDTH / 2 - 10 + Math.sin(t * 0.7) * 15;
+    let action = this.manager.input.shift();
+    while (action) {
+      switch (action) {
+        case 'left':
+        case 'up':
+          this.selectedButton = 0;
+          break;
+        case 'right':
+        case 'down':
+          this.selectedButton = 1;
+          break;
+        case 'back':
+        case 'pause':
+          this.manager.goto('SELECT');
+          return;
+        case 'eat':
+        case 'confirm':
+          if (this.selectedButton === 0 && this.result) {
+            this.manager.goto('BRIEFING', this.result.retryMission as unknown as Record<string, unknown>);
+            return;
+          }
+          this.manager.goto('SELECT');
+          return;
+        default:
+          break;
+      }
+      action = this.manager.input.shift();
     }
   }
 
-  exit(): void {
-    this.destroyChildren();
-    this.gameOverText = null;
-    this.ghostCrewmate = null;
-    this.data = null;
-    this.elapsed = 0;
+  draw(ctx: CanvasRenderingContext2D): void {
+    drawSpaceBackground(ctx, this.elapsed, this.stars);
+
+    // Panel
+    const panelX = 70, panelY = 56, panelW = 460, panelH = 258;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(panelX + 4, panelY + 5, panelW, panelH);
+    ctx.fillStyle = '#3a1020';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = COLOURS.DANGER;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Title
+    ctx.font = "28px 'Press Start 2P', monospace";
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#080c0c';
+    ctx.lineWidth = 6;
+    ctx.strokeText('Mission Failed', CANVAS_WIDTH / 2, 100);
+    ctx.fillStyle = COLOURS.DANGER;
+    ctx.fillText('Mission Failed', CANVAS_WIDTH / 2, 100);
+
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(`${this.result?.stageTitle ?? ''}  •  ${this.result?.scenarioTitle ?? ''}`, CANVAS_WIDTH / 2, 148);
+
+    ctx.font = "15px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#ffd0d8';
+    ctx.fillText(`Final score ${this.result?.score ?? 0}`, CANVAS_WIDTH / 2, 186);
+    const failLine = this.result?.mode === 'impostor'
+      ? 'Too many correct answers were eaten.'
+      : this.result?.reason === 'impostor'
+        ? 'The impostor wore you out.'
+        : 'Those sums were tricky — check each one carefully!';
+    ctx.fillText(failLine, CANVAS_WIDTH / 2, 214);
+    ctx.fillText('Try again, or head back to the stage map.', CANVAS_WIDTH / 2, 242);
+    ctx.restore();
+
+    drawButton(ctx, 126, 338, 150, 48, 'Try Again', this.selectedButton === 0, this.elapsed);
+    drawButton(ctx, 324, 338, 150, 48, 'Select Stage', this.selectedButton === 1, this.elapsed);
   }
 }

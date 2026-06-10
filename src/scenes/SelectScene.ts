@@ -1,277 +1,372 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { Scene } from '@/core/Scene';
-import { SceneManager } from '@/core/SceneManager';
-import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createStar } from '@/sprites/StarIcon';
-import { createPadlock } from '@/sprites/PadlockIcon';
-import { getSortedStages } from '@/stages/index';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, PIXEL_FONT } from '@/constants';
-import type { StageDefinition, GameMode } from '@/types';
+import type { Scene, GameMode } from '@/types';
+import type { SceneManager } from '@/core/SceneManager';
+import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData } from '@/core/progress';
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+import { COLOURS } from '@/rendering/colours';
+import { RoughRenderer } from '@/rendering/RoughRenderer';
+import { drawSpaceBackground, fitText, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
+import { STAGES } from '@/stages';
+import type { MissionParams } from './sceneParams';
 
-const CARD_WIDTH = 160;
-const CARD_HEIGHT = 54;
-const CARD_GAP_X = 8;
-const CARD_GAP_Y = 4;
-const GRID_COLS = 3;
-const GRID_START_X = Math.round((GAME_WIDTH - CARD_WIDTH * GRID_COLS - CARD_GAP_X * (GRID_COLS - 1)) / 2);
-const GRID_START_Y = 36;
+type SelectStep = 'stage' | 'mode';
 
-// Bottom detail panel
-const PANEL_H = 110;
-// Layout rows within the panel (relative to panelY):
-const DESC_Y   = 8;   // description text
-const MISS_Y   = 56;  // mission count (reserves 3 lines × 16px = 48px for description)
-const MODE_Y   = 74;  // crew/impostor mode buttons (22px tall → bottom at 96)
-const LAUNCH_Y = 33;  // launch button top (height=44 → centred in 110px panel)
+// Stage grid: 2 columns × 4 rows
+const TILE_W = 272;
+const TILE_H = 72;
+const COL_X = [16, 312] as const;
+const TOP_Y = 60;
+const ROW_GAP = 80;
 
-export class SelectScene extends Scene {
+// Mode tiles
+const MODE_W = 232;
+const MODE_H = 174;
+const MODE_LEFT_X = 62;
+const MODE_RIGHT_X = 306;
+const MODE_Y = 122;
+
+export class SelectScene implements Scene {
   private manager: SceneManager;
-  private cards: Container[] = [];
-  private detailPanel: Container | null = null;
-  private launchButton: ButtonSprite | null = null;
-  private selectedStage: StageDefinition | null = null;
-  private selectedMode: GameMode = 'crew';
-  private panelBorder: Graphics | null = null;
-  private crewBtn: ButtonSprite | null = null;
-  private impostorBtn: ButtonSprite | null = null;
+  private progress: ProgressData = getProgress();
+  private step: SelectStep = 'stage';
+  private selectedStageIndex = 0;
+  private selectedModeIndex = 0; // 0 = crew, 1 = impostor
+  private elapsed = 0;
+  private stars: Star[] = makeStars(48);
+  private rr: RoughRenderer | null = null;
 
   constructor(manager: SceneManager) {
-    super();
     this.manager = manager;
+    this.stars = makeStars(48);
   }
 
-  enter(): void {
-    this.cards = [];
-    this.selectedStage = null;
+  enter(_params?: Record<string, unknown>): void {
+    this.progress = getProgress();
+    this.step = 'stage';
+    this.selectedStageIndex = 0;
+    this.selectedModeIndex = 0;
+    this.manager.input.setEnabled(true);
+  }
 
-    // Title
-    const titleStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 20,
-      fontWeight: 'bold',
-      fill: COLORS.STAR_WHITE,
-    });
-    const title = new Text({ text: 'SELECT STAGE', style: titleStyle });
-    title.anchor.set(0.5, 0);
-    title.x = GAME_WIDTH / 2;
-    title.y = 10;
-    this.root.addChild(title);
+  exit(): void {}
 
-    // Back button (top-left)
-    const backStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 14,
-      fill: COLORS.VISOR_CYAN,
-    });
-    const backText = new Text({ text: '< Back', style: backStyle });
-    backText.x = 10;
-    backText.y = 12;
-    backText.eventMode = 'static';
-    backText.cursor = 'pointer';
-    backText.on('pointerdown', () => {
-      this.manager.sound.buttonClick();
-      this.manager.goto('TITLE');
-    });
-    this.root.addChild(backText);
-
-    // Build stage cards
-    const stages = getSortedStages();
-    const allStageInfo = stages.map((s) => ({
-      id: s.id,
-      difficulty: s.difficulty,
-      missionCount: s.missionCount,
-    }));
-
-    stages.forEach((stage, index) => {
-      const col = index % GRID_COLS;
-      const row = Math.floor(index / GRID_COLS);
-      const x = GRID_START_X + col * (CARD_WIDTH + CARD_GAP_X);
-      const y = GRID_START_Y + row * (CARD_HEIGHT + CARD_GAP_Y);
-
-      const unlocked = this.manager.save.isDifficultyUnlocked(allStageInfo, stage.difficulty);
-      const card = this.createCard(stage, unlocked);
-      card.x = x;
-      card.y = y;
-
-      if (unlocked) {
-        card.eventMode = 'static';
-        card.cursor = 'pointer';
-        card.on('pointerdown', () => {
-          this.manager.sound.buttonClick();
-          this.selectStage(stage);
-        });
+  update(dt: number): void {
+    this.elapsed += dt;
+    let action = this.manager.input.shift();
+    while (action) {
+      if (this.step === 'stage') {
+        switch (action) {
+          case 'up':
+            this.selectedStageIndex = (this.selectedStageIndex - 2 + STAGES.length) % STAGES.length;
+            break;
+          case 'down':
+            this.selectedStageIndex = (this.selectedStageIndex + 2) % STAGES.length;
+            break;
+          case 'left':
+            if (this.selectedStageIndex % 2 === 1) this.selectedStageIndex -= 1;
+            break;
+          case 'right':
+            if (this.selectedStageIndex % 2 === 0 && this.selectedStageIndex + 1 < STAGES.length)
+              this.selectedStageIndex += 1;
+            break;
+          case 'back':
+          case 'pause':
+            this.manager.goto('TITLE');
+            return;
+          case 'eat':
+          case 'confirm':
+            this.step = 'mode';
+            this.selectedModeIndex = 0;
+            break;
+          default:
+            break;
+        }
+      } else {
+        switch (action) {
+          case 'left':
+            this.selectedModeIndex = 0;
+            break;
+          case 'right':
+            this.selectedModeIndex = 1;
+            break;
+          case 'up':
+          case 'down':
+            this.selectedModeIndex = 1 - this.selectedModeIndex;
+            break;
+          case 'back':
+          case 'pause':
+            this.step = 'stage';
+            break;
+          case 'eat':
+          case 'confirm': {
+            const mode: GameMode = this.selectedModeIndex === 0 ? 'crew' : 'impostor';
+            const stage = STAGES[this.selectedStageIndex];
+            const params: MissionParams = {
+              stageId: stage.id,
+              stageIndex: this.selectedStageIndex,
+              scenarioIndex: getNextScenarioIndex(stage.id, mode, this.progress),
+              mode,
+              seed: Date.now() % 1000000,
+            };
+            this.manager.goto('BRIEFING', params as unknown as Record<string, unknown>);
+            return;
+          }
+          default:
+            break;
+        }
       }
-
-      this.root.addChild(card);
-      this.cards.push(card);
-    });
-
-    // Detail panel (shown when a stage is selected)
-    this.detailPanel = new Container();
-    this.detailPanel.visible = false;
-    this.root.addChild(this.detailPanel);
+      action = this.manager.input.shift();
+    }
   }
 
-  private createCard(stage: StageDefinition, unlocked: boolean): Container {
-    const card = new Container();
-
-    // Background
-    const bg = new Graphics();
-    const bgColor = unlocked ? 0x2a2f55 : 0x22264a;
-    bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 6).fill(bgColor);
-    if (unlocked) {
-      bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 6).stroke({ width: 1, color: COLORS.HULL_GREY });
+  draw(ctx: CanvasRenderingContext2D): void {
+    if (!this.rr) {
+      this.rr = new RoughRenderer(ctx);
     }
-    card.addChild(bg);
-
-    // Stage name — wrap text so long titles stay within the card
-    const nameWrapWidth = unlocked ? CARD_WIDTH - 16 : CARD_WIDTH - 36;
-    const nameStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 10,
-      fontWeight: 'bold',
-      fill: unlocked ? COLORS.STAR_WHITE : COLORS.HULL_GREY,
-      wordWrap: true,
-      wordWrapWidth: nameWrapWidth,
-    });
-    const nameText = new Text({ text: stage.name, style: nameStyle });
-    nameText.x = 8;
-    nameText.y = 6;
-    card.addChild(nameText);
-
-    // Difficulty stars — fixed row near the bottom of the card
-    for (let i = 0; i < 5; i++) {
-      const star = createStar(i < stage.difficulty, 7);
-      star.x = 8 + i * 14;
-      star.y = CARD_HEIGHT - 16;
-      card.addChild(star);
-    }
-
-    // Lock icon top-right (reserved column keeps text from flowing beneath it)
-    if (!unlocked) {
-      const padlock = createPadlock(14);
-      padlock.x = CARD_WIDTH - 22;
-      padlock.y = 6;
-      card.addChild(padlock);
-      card.alpha = 0.5;
-    }
-
-    return card;
-  }
-
-  private selectStage(stage: StageDefinition): void {
-    this.selectedStage = stage;
-    this.selectedMode = 'crew';
-
-    if (!this.detailPanel) return;
-
-    this.detailPanel.removeChildren();
-    this.detailPanel.visible = true;
-
-    const panelY = GAME_HEIGHT - PANEL_H;
-
-    this.panelBorder = new Graphics();
-    this.drawPanelBorder(panelY, COLORS.VISOR_CYAN);
-    this.detailPanel.addChild(this.panelBorder);
-
-    // Description — reserved area for up to 3 lines (DESC_Y to MISS_Y)
-    const descStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 10,
-      fill: COLORS.STAR_WHITE,
-      wordWrap: true,
-      wordWrapWidth: 310,
-    });
-    const descText = new Text({ text: stage.description, style: descStyle });
-    descText.x = 20;
-    descText.y = panelY + DESC_Y;
-    this.detailPanel.addChild(descText);
-
-    // Mission count
-    const missionStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 8,
-      fill: COLORS.HULL_GREY,
-    });
-    const missionText = new Text({
-      text: `${stage.missionCount} missions`,
-      style: missionStyle,
-    });
-    missionText.x = 20;
-    missionText.y = panelY + MISS_Y;
-    this.detailPanel.addChild(missionText);
-
-    // Mode toggle buttons — short labels fit the low-res cards
-    const hasCrewProgress = this.manager.save.hasCrewProgress(stage.id);
-
-    this.crewBtn = new ButtonSprite('CREW', 60, 22, COLORS.VISOR_CYAN, 10);
-    this.crewBtn.x = 20;
-    this.crewBtn.y = panelY + MODE_Y;
-    this.crewBtn.onClick = () => this.setMode('crew');
-    this.detailPanel.addChild(this.crewBtn);
-
-    const impostorColor = hasCrewProgress ? COLORS.HULL_GREY : 0x333355;
-    this.impostorBtn = new ButtonSprite('IMPOSTOR', 96, 22, impostorColor, 10);
-    this.impostorBtn.x = 88;
-    this.impostorBtn.y = panelY + MODE_Y;
-    if (hasCrewProgress) {
-      this.impostorBtn.onClick = () => this.setMode('impostor');
+    drawSpaceBackground(ctx, this.elapsed, this.stars);
+    if (this.step === 'stage') {
+      this.drawStageSelect(ctx);
     } else {
-      this.impostorBtn.alpha = 0.4;
-    }
-    this.detailPanel.addChild(this.impostorBtn);
-
-    // Launch button — right side, vertically centred in panel
-    this.launchButton = new ButtonSprite('LAUNCH', 145, 44, COLORS.SUCCESS_GREEN);
-    this.launchButton.x = GAME_WIDTH - 158;
-    this.launchButton.y = panelY + LAUNCH_Y;
-    this.launchButton.onClick = () => {
-      if (!this.selectedStage) return;
-      this.manager.sound.buttonClick();
-      this.manager.goto('BRIEFING', {
-        stage: this.selectedStage,
-        missionIndex: 0,
-        mode: this.selectedMode,
-      });
-    };
-    this.detailPanel.addChild(this.launchButton);
-  }
-
-  private setMode(mode: GameMode): void {
-    if (this.selectedMode === mode) return;
-    this.selectedMode = mode;
-    this.manager.sound.buttonClick();
-
-    const panelY = GAME_HEIGHT - PANEL_H;
-    const borderColor = mode === 'impostor' ? COLORS.CREW_RED : COLORS.VISOR_CYAN;
-    if (this.panelBorder) {
-      this.panelBorder.clear();
-      this.drawPanelBorder(panelY, borderColor);
+      this.drawModeSelect(ctx);
     }
   }
 
-  private drawPanelBorder(panelY: number, borderColor: number): void {
-    if (!this.panelBorder) return;
-    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, PANEL_H, 6).fill(0x2a2f55);
-    this.panelBorder.roundRect(10, panelY, GAME_WIDTH - 20, PANEL_H, 6).stroke({
-      width: 1,
-      color: borderColor,
-    });
+  private drawStageSelect(ctx: CanvasRenderingContext2D): void {
+    this.drawTerminalFrame(ctx);
+    this.drawTitleBanner(ctx, 'Choose your mission');
+
+    for (let i = 0; i < STAGES.length; i += 1) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = COL_X[col];
+      const y = TOP_Y + row * ROW_GAP;
+      this.drawStageTile(ctx, i, x, y);
+    }
+
+    drawControlsHintsBar(ctx, [
+      ['ARROWS', 'move'],
+      ['SPACE / ENTER', 'select'],
+      ['ESC', 'back'],
+    ]);
   }
 
-  update(_dt: number): void {
-    // No continuous animation needed
+  private drawStageTile(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {
+    const stage = STAGES[index];
+    const selected = this.selectedStageIndex === index;
+    const crewDone = getModeProgress(stage.id, 'crew', this.progress).completed;
+    const impostorDone = getModeProgress(stage.id, 'impostor', this.progress).completed;
+    const r = 8;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    rrect(ctx, x + 3, y + 4, TILE_W, TILE_H, r);
+    ctx.fill();
+
+    ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
+    rrect(ctx, x, y, TILE_W, TILE_H, r);
+    ctx.fill();
+
+    if (selected) {
+      ctx.save();
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 3;
+      rrect(ctx, x, y, TILE_W, TILE_H, r);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = '#8aacac';
+      ctx.lineWidth = 1.5;
+      rrect(ctx, x, y, TILE_W, TILE_H, r);
+      ctx.stroke();
+    }
+
+    // Icon badge
+    const bSz = 46;
+    const bX = x + 10;
+    const bY = y + (TILE_H - bSz) / 2;
+    ctx.fillStyle = '#2a3c3c';
+    rrect(ctx, bX, bY, bSz, bSz, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#4a6060';
+    ctx.lineWidth = 1;
+    rrect(ctx, bX, bY, bSz, bSz, 6);
+    ctx.stroke();
+
+    ctx.font = stage.icon.length === 1 ? "18px 'Press Start 2P', monospace" : "11px 'Press Start 2P', monospace";
+    ctx.fillStyle = stage.iconColour;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stage.icon, bX + bSz / 2, bY + bSz / 2 + 1);
+
+    const tX = x + 66;
+    ctx.font = "bold 14px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#0a1a1a';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stage.title, tX, y + 22);
+
+    const descMaxW = x + TILE_W - 10 - tX;
+    ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
+    fitText(ctx, stage.description, tX, y + 40, descMaxW, 12, "'Fredoka One', sans-serif", 10);
+
+    if (crewDone || impostorDone) {
+      const badges = [crewDone && '✓ Crew', impostorDone && '✓ Impostor'].filter(Boolean).join('  ');
+      ctx.font = "10px 'Fredoka One', sans-serif";
+      ctx.fillStyle = selected ? '#054030' : COLOURS.SUCCESS;
+      ctx.fillText(badges as string, tX, y + 58);
+    }
+
+    ctx.restore();
   }
 
-  exit(): void {
-    this.destroyChildren();
-    this.cards = [];
-    this.detailPanel = null;
-    this.launchButton = null;
-    this.selectedStage = null;
-    this.selectedMode = 'crew';
-    this.panelBorder = null;
-    this.crewBtn = null;
-    this.impostorBtn = null;
+  // ── Mode select ─────────────────────────────────────────────────────────────
+
+  private drawModeSelect(ctx: CanvasRenderingContext2D): void {
+    const stage = STAGES[this.selectedStageIndex];
+
+    this.drawTerminalFrame(ctx);
+    this.drawTitleBanner(ctx, stage.title);
+
+    ctx.save();
+    ctx.font = "14px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#7aa8a8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('How do you want to play?', CANVAS_WIDTH / 2, 88);
+    ctx.restore();
+
+    this.drawModeTile(ctx, 'crew', MODE_LEFT_X, MODE_Y);
+    this.drawModeTile(ctx, 'impostor', MODE_RIGHT_X, MODE_Y);
+
+    drawControlsHintsBar(ctx, [
+      ['LEFT / RIGHT', 'choose'],
+      ['SPACE / ENTER', 'start'],
+      ['ESC', 'back'],
+    ]);
+  }
+
+  private drawModeTile(ctx: CanvasRenderingContext2D, mode: GameMode, x: number, y: number): void {
+    const stage = STAGES[this.selectedStageIndex];
+    const selected =
+      (mode === 'crew' && this.selectedModeIndex === 0) ||
+      (mode === 'impostor' && this.selectedModeIndex === 1);
+    const progress = getModeProgress(stage.id, mode, this.progress);
+    const accent = mode === 'crew' ? COLOURS.PLAYER_CREW : COLOURS.PLAYER_IMPOSTOR;
+    const modeLabel = mode === 'crew' ? 'CREW' : 'IMPOSTOR';
+    const desc1 = mode === 'crew' ? 'Eat the correct answers.' : 'Break the wrong answers.';
+    const desc2 = mode === 'crew' ? 'Avoid the impostors!' : 'Outrun the crewmates!';
+    const missionLabel = progress.completed
+      ? '✓ Complete!'
+      : `Mission ${Math.min(progress.completedScenarios + 1, stage.scenarios.length)} / ${stage.scenarios.length}`;
+    const r = 10;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    rrect(ctx, x + 4, y + 5, MODE_W, MODE_H, r);
+    ctx.fill();
+
+    ctx.fillStyle = selected ? '#10d8f0' : '#c8dcdc';
+    rrect(ctx, x, y, MODE_W, MODE_H, r);
+    ctx.fill();
+
+    if (selected) {
+      ctx.save();
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 3;
+      rrect(ctx, x, y, MODE_W, MODE_H, r);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = '#8aacac';
+      ctx.lineWidth = 2;
+      rrect(ctx, x, y, MODE_W, MODE_H, r);
+      ctx.stroke();
+    }
+
+    ctx.font = "16px 'Press Start 2P', monospace";
+    ctx.fillStyle = '#0a1a1a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(modeLabel, x + MODE_W / 2, y + 42);
+
+    ctx.fillStyle = selected ? '#0a3a4a' : accent;
+    ctx.fillRect(x + 20, y + 60, MODE_W - 40, 2);
+
+    ctx.font = "13px 'Fredoka One', sans-serif";
+    ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(desc1, x + MODE_W / 2, y + 88);
+    ctx.fillText(desc2, x + MODE_W / 2, y + 108);
+
+    if (this.rr) {
+      const bob = selected ? Math.sin(this.elapsed * 0.004) * 2 : 0;
+      this.rr.crewmate(x + MODE_W / 2, y + 134 + bob, accent, 3, 0.7);
+    }
+
+    ctx.font = "12px 'Fredoka One', sans-serif";
+    ctx.fillStyle = progress.completed ? COLOURS.SUCCESS : selected ? '#0a3a4a' : accent;
+    ctx.fillText(missionLabel, x + MODE_W / 2, y + 162);
+
+    ctx.restore();
+  }
+
+  // ── Shared UI helpers ────────────────────────────────────────────────────────
+
+  private drawTerminalFrame(ctx: CanvasRenderingContext2D): void {
+    const m = 5;
+    const r = 12;
+    ctx.save();
+    ctx.fillStyle = 'rgba(6, 12, 12, 0.6)';
+    rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
+    ctx.fill();
+    ctx.strokeStyle = '#4a7070';
+    ctx.lineWidth = 3;
+    rrect(ctx, m, m, CANVAS_WIDTH - m * 2, CANVAS_HEIGHT - m * 2, r);
+    ctx.stroke();
+    ctx.strokeStyle = '#2a4848';
+    ctx.lineWidth = 1;
+    rrect(ctx, m + 4, m + 4, CANVAS_WIDTH - (m + 4) * 2, CANVAS_HEIGHT - (m + 4) * 2, r - 2);
+    ctx.stroke();
+    for (const [bx, by] of [[m + 14, m + 14], [CANVAS_WIDTH - m - 14, m + 14], [m + 14, CANVAS_HEIGHT - m - 14], [CANVAS_WIDTH - m - 14, CANVAS_HEIGHT - m - 14]] as [number, number][]) {
+      ctx.fillStyle = '#3a5858';
+      ctx.beginPath();
+      ctx.arc(bx, by, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#5a8080';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.strokeStyle = '#1e3030';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(bx - 2.5, by); ctx.lineTo(bx + 2.5, by);
+      ctx.moveTo(bx, by - 2.5); ctx.lineTo(bx, by + 2.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  private drawTitleBanner(ctx: CanvasRenderingContext2D, text: string): void {
+    const bW = Math.min(420, CANVAS_WIDTH - 80);
+    const bH = 36;
+    const bX = (CANVAS_WIDTH - bW) / 2;
+    const bY = 13;
+    ctx.save();
+    ctx.fillStyle = '#0d1e1e';
+    rrect(ctx, bX, bY, bW, bH, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#40d8c0';
+    ctx.lineWidth = 2;
+    rrect(ctx, bX, bY, bW, bH, 6);
+    ctx.stroke();
+    ctx.font = "16px 'Press Start 2P', monospace";
+    ctx.fillStyle = '#40d8c0';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, CANVAS_WIDTH / 2, bY + bH / 2);
+    ctx.restore();
   }
 }

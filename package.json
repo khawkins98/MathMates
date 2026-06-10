@@ -1,16 +1,14 @@
 {
   "name": "mathmates",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "pixi-filters": "^6.1.5",
-    "pixi.js": "^8.0.0"
+    "roughjs": "^4.6.6"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

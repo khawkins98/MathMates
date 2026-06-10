@@ -1,264 +1,148 @@
-import { Container, Text, TextStyle } from 'pixi.js';
-import { Scene } from '@/core/Scene';
-import { SceneManager } from '@/core/SceneManager';
-import { ButtonSprite } from '@/sprites/ButtonSprite';
-import { createStar } from '@/sprites/StarIcon';
-import { createMiniCrewmate, CREW_COLORS } from '@/sprites/CrewmateSprite';
-import { AnimationSystem } from '@/core/AnimationSystem';
-import { Easing } from '@/core/Easing';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT, TIME_BONUS, PIXEL_FONT } from '@/constants';
-import type { StageDefinition, GameMode } from '@/types';
+import { CANVAS_WIDTH } from '@/constants';
+import type { SceneManager } from '@/core/SceneManager';
+import { COLOURS } from '@/rendering/colours';
+import { RoughRenderer } from '@/rendering/RoughRenderer';
+import { drawSpaceBackground, drawButton, makeStars, type Star } from '@/rendering/drawHelpers';
+import type { Scene } from '@/types';
+import type { CompleteSceneParams } from './sceneParams';
 
-interface CompleteData {
-  stage: StageDefinition;
-  missionIndex: number;
-  score: number;
-  accuracy: number;
-  livesRemaining: number;
-  maxLives: number;
-  elapsed: number;
-  parTime: number;
-  mode?: GameMode;
+function isCompleteParams(value: unknown): value is CompleteSceneParams {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Partial<CompleteSceneParams>;
+  return typeof candidate.score === 'number'
+    && typeof candidate.stageTitle === 'string'
+    && typeof candidate.scenarioTitle === 'string';
 }
 
-interface StarDelay {
-  star: Container;
-  delay: number;
-  started: boolean;
-}
-
-export class CompleteScene extends Scene {
+export class CompleteScene implements Scene {
   private manager: SceneManager;
-  private data: CompleteData | null = null;
-  private animations: AnimationSystem;
-  private stars: Container[] = [];
-  private starDelays: StarDelay[] = [];
-  private sceneElapsed = 0;
+  private result: CompleteSceneParams | null = null;
+  private selectedButton = 0;
+  private stars: Star[] = makeStars(50);
+  private elapsed = 0;
+  private rr: RoughRenderer | null = null;
 
   constructor(manager: SceneManager) {
-    super();
     this.manager = manager;
-    this.animations = new AnimationSystem();
   }
 
-  enter(data?: unknown): void {
-    this.data = data as CompleteData;
-    if (!this.data) return;
-
-    this.animations.clear();
-    this.stars = [];
-    this.starDelays = [];
-    this.sceneElapsed = 0;
-
-    const mode = this.data.mode ?? 'crew';
-    const isImpostor = mode === 'impostor';
-
-    // Save progress to mode-specific slot
-    if (isImpostor) {
-      this.manager.save.completeImpostorMission(
-        this.data.stage.id,
-        this.data.missionIndex,
-        this.data.score,
-      );
-    } else {
-      this.manager.save.completeMission(
-        this.data.stage.id,
-        this.data.missionIndex,
-        this.data.score,
-      );
+  enter(params?: Record<string, unknown>): void {
+    if (!isCompleteParams(params)) {
+      this.manager.goto('SELECT');
+      return;
     }
-
-    // Play complete sound
-    this.manager.sound.missionComplete();
-
-    // Title
-    const titleLabel = isImpostor ? 'SABOTAGE COMPLETE!' : 'MISSION COMPLETE!';
-    const titleColor = isImpostor ? COLORS.CREW_RED : COLORS.SUCCESS_GREEN;
-    const titleStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 28,
-      fontWeight: 'bold',
-      fill: titleColor,
-      align: 'center',
-    });
-    const titleText = new Text({ text: titleLabel, style: titleStyle });
-    titleText.anchor.set(0.5);
-    titleText.x = GAME_WIDTH / 2;
-    titleText.y = 40;
-    this.root.addChild(titleText);
-
-    // Score
-    const scoreStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 18,
-      fontWeight: 'bold',
-      fill: COLORS.STAR_WHITE,
-    });
-    const scoreText = new Text({
-      text: `Score: ${this.data.score}`,
-      style: scoreStyle,
-    });
-    scoreText.anchor.set(0.5);
-    scoreText.x = GAME_WIDTH / 2;
-    scoreText.y = 90;
-    this.root.addChild(scoreText);
-
-    // Accuracy
-    const accuracyPercent = Math.round(this.data.accuracy * 100);
-    const accStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 14,
-      fill: COLORS.STAR_WHITE,
-    });
-    const accText = new Text({
-      text: `Accuracy: ${accuracyPercent}%`,
-      style: accStyle,
-    });
-    accText.anchor.set(0.5);
-    accText.x = GAME_WIDTH / 2;
-    accText.y = 120;
-    this.root.addChild(accText);
-
-    // Crewmates remaining
-    const crewRow = new Container();
-    const crewSpacing = 16;
-    const totalCrewWidth = this.data.maxLives * crewSpacing;
-    for (let i = 0; i < this.data.maxLives; i++) {
-      const mini = createMiniCrewmate(CREW_COLORS[i % CREW_COLORS.length]);
-      mini.x = i * crewSpacing;
-      mini.y = 0;
-      if (i >= this.data.livesRemaining) {
-        mini.alpha = 0.2; // Lost crewmates greyed out
-      }
-      crewRow.addChild(mini);
-    }
-    crewRow.x = GAME_WIDTH / 2 - totalCrewWidth / 2;
-    crewRow.y = 150;
-    this.root.addChild(crewRow);
-
-    const remainStyle = new TextStyle({
-      fontFamily: PIXEL_FONT,
-      fontSize: 12,
-      fill: COLORS.HULL_GREY,
-    });
-    const remainText = new Text({
-      text: `${this.data.livesRemaining}/${this.data.maxLives} crewmates`,
-      style: remainStyle,
-    });
-    remainText.anchor.set(0.5);
-    remainText.x = GAME_WIDTH / 2;
-    remainText.y = 170;
-    this.root.addChild(remainText);
-
-    // Time bonus indicator
-    const earnedTimeBonus = this.data.elapsed <= this.data.parTime;
-    if (earnedTimeBonus) {
-      const bonusStyle = new TextStyle({
-        fontFamily: PIXEL_FONT,
-        fontSize: 14,
-        fontWeight: 'bold',
-        fill: COLORS.VISOR_CYAN,
-      });
-      const bonusText = new Text({
-        text: `TIME BONUS +${TIME_BONUS}`,
-        style: bonusStyle,
-      });
-      bonusText.anchor.set(0.5);
-      bonusText.x = GAME_WIDTH / 2;
-      bonusText.y = 195;
-      this.root.addChild(bonusText);
-    }
-
-    // Star rating
-    const starCount = accuracyPercent >= 90 ? 3 : accuracyPercent >= 70 ? 2 : 1;
-    const starSize = 20;
-    const starSpacing = 50;
-    const starsY = earnedTimeBonus ? 230 : 210;
-    const starStartX = GAME_WIDTH / 2 - ((starCount - 1) * starSpacing) / 2;
-
-    for (let i = 0; i < starCount; i++) {
-      const star = createStar(true, starSize);
-      star.x = starStartX + i * starSpacing - starSize;
-      star.y = starsY - starSize;
-      star.scale.set(0);
-      this.root.addChild(star);
-      this.stars.push(star);
-
-      // Stagger star animations using elapsed time in update()
-      this.starDelays.push({ star, delay: i * 300, started: false });
-    }
-
-    // Buttons
-    const buttonsY = starsY + 60;
-
-    // Next Mission button
-    const isLastMission = this.data.missionIndex >= this.data.stage.missionCount - 1;
-    const nextLabel = isLastMission ? 'Back to Select' : 'Next Mission';
-    const nextButton = new ButtonSprite(nextLabel, 150, 36, COLORS.SUCCESS_GREEN);
-    nextButton.x = GAME_WIDTH / 2 - 160;
-    nextButton.y = buttonsY;
-    nextButton.onClick = () => {
-      this.manager.sound.buttonClick();
-      if (isLastMission || !this.data) {
-        this.manager.goto('SELECT');
-      } else {
-        this.manager.goto('BRIEFING', {
-          stage: this.data.stage,
-          missionIndex: this.data.missionIndex + 1,
-          mode,
-        });
-      }
-    };
-    this.root.addChild(nextButton);
-
-    // Back to Select button (only show if not last mission, since next already goes to select)
-    if (!isLastMission) {
-      const backButton = new ButtonSprite('Back to Select', 150, 36, COLORS.HULL_GREY);
-      backButton.x = GAME_WIDTH / 2 + 10;
-      backButton.y = buttonsY;
-      backButton.onClick = () => {
-        this.manager.sound.buttonClick();
-        this.manager.goto('SELECT');
-      };
-      this.root.addChild(backButton);
-    }
+    this.result = params;
+    this.selectedButton = params.nextMission ? 0 : 1;
   }
+
+  exit(): void {}
 
   update(dt: number): void {
-    this.sceneElapsed += dt;
+    this.elapsed += dt;
+    let action = this.manager.input.shift();
+    while (action) {
+      switch (action) {
+        case 'left':
+        case 'up':
+          this.selectedButton = 0;
+          break;
+        case 'right':
+        case 'down':
+          this.selectedButton = 1;
+          break;
+        case 'back':
+        case 'pause':
+          this.manager.goto('SELECT');
+          return;
+        case 'eat':
+        case 'confirm':
+          if (this.selectedButton === 0 && this.result?.nextMission) {
+            this.manager.goto('BRIEFING', this.result.nextMission as unknown as Record<string, unknown>);
+            return;
+          }
+          this.manager.goto('SELECT');
+          return;
+        default:
+          break;
+      }
+      action = this.manager.input.shift();
+    }
+  }
 
-    // Trigger staggered star animations based on elapsed time
-    for (const sd of this.starDelays) {
-      if (!sd.started && this.sceneElapsed >= sd.delay) {
-        sd.started = true;
-        this.animations.animate(
-          sd.star.scale as unknown as Record<string, number>,
-          'x',
-          0,
-          1,
-          400,
-          Easing.bounce,
-        );
-        this.animations.animate(
-          sd.star.scale as unknown as Record<string, number>,
-          'y',
-          0,
-          1,
-          400,
-          Easing.bounce,
-        );
+  draw(ctx: CanvasRenderingContext2D): void {
+    const result = this.result;
+    const accent = result?.mode === 'impostor' ? COLOURS.DANGER : COLOURS.SUCCESS;
+    const panelFill = result?.mode === 'impostor' ? '#3a1020' : '#1a3828';
+
+    if (!this.rr) {
+      this.rr = new RoughRenderer(ctx);
+    }
+    drawSpaceBackground(ctx, this.elapsed, this.stars);
+
+    const panelX = 58, panelY = 36, panelW = 484, panelH = 298;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(panelX + 4, panelY + 5, panelW, panelH);
+    ctx.fillStyle = panelFill;
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.font = "24px 'Press Start 2P', monospace";
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#080c0c';
+    ctx.lineWidth = 6;
+    ctx.strokeText('Mission', CANVAS_WIDTH / 2, 76);
+    ctx.strokeText('Complete!', CANVAS_WIDTH / 2, 108);
+    ctx.fillStyle = accent;
+    ctx.fillText('Mission', CANVAS_WIDTH / 2, 76);
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText('Complete!', CANVAS_WIDTH / 2, 108);
+
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#f0fafa';
+    ctx.fillText(`${result?.stageTitle ?? ''}  •  ${result?.scenarioTitle ?? ''}`, CANVAS_WIDTH / 2, 140);
+
+    ctx.font = "15px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#c8e8e0';
+    ctx.fillText(`Score ${result?.score ?? 0}`, CANVAS_WIDTH / 2, 172);
+    ctx.fillText(`Accuracy ${Math.round((result?.accuracy ?? 0) * 100)}%`, CANVAS_WIDTH / 2, 198);
+    ctx.fillText(`Time ${(result ? result.timeMs / 1000 : 0).toFixed(1)}s`, CANVAS_WIDTH / 2, 224);
+    ctx.fillText(`Lives left ${result?.lives ?? 0}`, CANVAS_WIDTH / 2, 250);
+    if (result?.bonusAwarded) {
+      ctx.fillStyle = COLOURS.GOLD;
+      ctx.fillText('Par time bonus +50!', CANVAS_WIDTH / 2, 276);
+    }
+    ctx.restore();
+
+    // Celebrating crew bouncing in the space below the stats
+    if (this.rr) {
+      const colours = result?.mode === 'impostor'
+        ? [COLOURS.PLAYER_IMPOSTOR, COLOURS.AI_CREW_1, COLOURS.PLAYER_IMPOSTOR]
+        : [COLOURS.PLAYER_CREW, COLOURS.AI_CREW_1, COLOURS.AI_CREW_2];
+      for (let i = 0; i < colours.length; i += 1) {
+        const hop = Math.abs(Math.sin(this.elapsed * 0.005 + i * 1.1)) * 8;
+        this.rr.crewmate(CANVAS_WIDTH / 2 + (i - 1) * 56, 306 - hop, colours[i], i + 2, 0.62);
       }
     }
 
-    this.animations.update(dt);
-  }
-
-  exit(): void {
-    this.destroyChildren();
-    this.animations.clear();
-    this.stars = [];
-    this.starDelays = [];
-    this.sceneElapsed = 0;
-    this.data = null;
+    const nextEnabled = Boolean(result?.nextMission);
+    if (!nextEnabled) {
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      drawButton(ctx, 118, 352, 170, 48, 'Next Mission', this.selectedButton === 0, this.elapsed);
+      ctx.restore();
+    } else {
+      drawButton(ctx, 118, 352, 170, 48, 'Next Mission', this.selectedButton === 0, this.elapsed);
+    }
+    drawButton(ctx, 312, 352, 170, 48, 'Back to Select', this.selectedButton === 1, this.elapsed);
   }
 }
