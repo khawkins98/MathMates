@@ -22,7 +22,7 @@ export function drawSpaceBackground(
   stars: Star[],
 ): void {
   ctx.fillStyle = '#0a0e10';
-  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
   for (const s of stars) {
     ctx.globalAlpha = Math.sin(elapsedMs * 0.0012 + s.phase) * 0.35 + 0.65;
@@ -33,13 +33,13 @@ export function drawSpaceBackground(
   }
   ctx.globalAlpha = 1;
 
-  const cx = ctx.canvas.width / 2;
-  const cy = ctx.canvas.height / 2;
-  const vg = ctx.createRadialGradient(cx, cy + 40, 0, cx, cy, ctx.canvas.height * 0.85);
+  const cx = CANVAS_WIDTH / 2;
+  const cy = CANVAS_HEIGHT / 2;
+  const vg = ctx.createRadialGradient(cx, cy + 40, 0, cx, cy, CANVAS_HEIGHT * 0.85);
   vg.addColorStop(0, 'rgba(13,40,40,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.55)');
   ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 }
 
 /** Adds a rounded-rect path to ctx without stroking or filling. Falls back to plain rect. */
