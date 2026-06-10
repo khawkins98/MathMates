@@ -93,16 +93,24 @@ export class Cell {
 
     if (this._state !== 'consumed') {
       const ctx = rr.context;
+      const flashing = this._state === 'correct_flash' || this._state === 'error_flash';
+      const isExpression = this.value.display.includes('+') || this.value.display.includes('−') || this.value.display.includes('×');
+      // During the eat flash the cell reveals its answer ("3 + 2 = 5") —
+      // a tiny imprinting moment on every single eat, right or wrong.
+      const text = flashing && isExpression ? `${this.value.display} = ${this.value.numeric}` : this.value.display;
       ctx.save();
       ctx.globalAlpha = this._state === 'broken' ? 0.55 : 1;
-      ctx.fillStyle = COLOURS.TEXT_CELL;
+      ctx.fillStyle = flashing ? '#ffffff' : COLOURS.TEXT_CELL;
       ctx.font = `18px 'Fredoka One', sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      while (ctx.measureText(text).width > w - 6 && parseInt(ctx.font, 10) > 12) {
+        ctx.font = `${parseInt(ctx.font, 10) - 1}px 'Fredoka One', sans-serif`;
+      }
       // Nudged above centre so entity sprites (anchored at the cell bottom)
       // never cover the expression — the player must always be able to read
       // the cell they are standing on.
-      ctx.fillText(this.value.display, x + w / 2, y + h / 2 - 12);
+      ctx.fillText(text, x + w / 2, y + h / 2 - 12);
       ctx.restore();
     }
   }

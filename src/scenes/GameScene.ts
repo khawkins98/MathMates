@@ -503,16 +503,16 @@ export class GameScene implements Scene {
     }
   }
 
-  /** Breaking a cell with a crewmate nearby raises suspicion; five strikes calls a meeting. */
+  /** Breaking a cell with a watching crewmate adjacent raises suspicion; five strikes calls a meeting. */
   private raiseSuspicionIfSeen(): void {
-    const wrapped = (a: number, b: number, size: number): number => {
-      const d = Math.abs(a - b);
-      return Math.min(d, size - d);
-    };
+    // Plain (unwrapped) distance 1: a plus-shaped sight zone. Radius 2 with
+    // wrap covered ~85% of the board with two crewmates — stealth wasn't a
+    // real option. Dwelling crewmates are head-down repairing and see nothing.
     const seen = this.crewmates.some(
       (c) =>
         c.alive &&
-        wrapped(c.col, this.player.col, GRID_COLS) + wrapped(c.row, this.player.row, GRID_ROWS) <= 2,
+        !c.dwelling &&
+        Math.abs(c.col - this.player.col) + Math.abs(c.row - this.player.row) <= 1,
     );
     if (!seen) {
       return;
@@ -734,18 +734,15 @@ export class GameScene implements Scene {
         this.wanderer.draw(this.rr, this.grid, this.elapsedMs);
       }
       if (this.mission?.mode === 'impostor') {
-        // Each crewmate projects a visible danger zone: break a cell inside
-        // it and you are SEEN. The rule is on the board, not in the manual.
-        const wrapped = (a: number, b: number, size: number): number => {
-          const d = Math.abs(a - b);
-          return Math.min(d, size - d);
-        };
-        const pulse = 0.10 + 0.05 * Math.sin(this.elapsedMs * 0.005);
+        // Each watching crewmate projects a visible plus-shaped danger zone:
+        // break a cell inside it and you are SEEN. Dwelling (repairing)
+        // crewmates go blind — that's the GO-NOW window the mode runs on.
+        const pulse = 0.12 + 0.06 * Math.sin(this.elapsedMs * 0.005);
         ctx.save();
         for (let col = 0; col < GRID_COLS; col += 1) {
           for (let row = 0; row < GRID_ROWS; row += 1) {
             const watched = this.crewmates.some(
-              (c) => c.alive && wrapped(c.col, col, GRID_COLS) + wrapped(c.row, row, GRID_ROWS) <= 2,
+              (c) => c.alive && !c.dwelling && Math.abs(c.col - col) + Math.abs(c.row - row) <= 1,
             );
             if (watched) {
               const pos = this.grid.cellScreenPos(col, row);

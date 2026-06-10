@@ -64,6 +64,11 @@ export class AICrewmate {
     return this._alive;
   }
 
+  /** Head-down repairing — can't see the impostor while dwelling. */
+  get dwelling(): boolean {
+    return this.isDwelling;
+  }
+
   eliminate(): void {
     this._alive = false;
   }
