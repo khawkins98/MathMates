@@ -211,7 +211,19 @@ export class GameScene implements Scene {
       return;
     }
     const cell = this.grid.getCellAt(this.player.col, this.player.row);
-    if (!cell || cell.state === 'consumed' || cell.state === 'broken' || cell.state === 'correct_flash' || cell.state === 'error_flash') {
+    if (!cell || cell.state === 'correct_flash' || cell.state === 'error_flash') {
+      return;
+    }
+    if (cell.state === 'consumed' || cell.state === 'broken') {
+      // Nothing left to eat here — but in impostor mode a crewmate dwelling on
+      // a broken cell (repairing it) can still be ejected. Without this, the
+      // advertised counterplay barely exists: repairers spend most of their
+      // time dwelling and used to be invulnerable the whole while.
+      if (this.mission.mode === 'impostor') {
+        this.checkCrewmateElimination();
+        this.eatLockMs = FLASH_DURATION;
+        this.syncHud();
+      }
       return;
     }
     if (cell.sus) {

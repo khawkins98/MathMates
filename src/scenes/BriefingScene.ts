@@ -111,7 +111,7 @@ export class BriefingScene implements Scene {
     ctx.font = "16px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#c8e0e0';
     const body = mode === 'impostor'
-      ? 'You are the impostor! Sneak around and break every wrong answer — but leave the correct ones alone!'
+      ? 'You are the impostor! Break every wrong answer — and eject crewmates by eating the cell they stand on!'
       : scenario?.briefingText ?? '';
     this.drawWrappedText(ctx, body, CANVAS_WIDTH / 2, 232, 440, 26);
 
