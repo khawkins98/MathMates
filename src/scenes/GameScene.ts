@@ -1,6 +1,7 @@
 import { AudioManager } from '@/audio/AudioManager';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, CELL_GAP, CELL_SIZE, FLASH_DURATION, GRID_COLS, GRID_OFFSET_X, GRID_OFFSET_Y, GRID_ROWS, STARTING_LIVES } from '@/constants';
 import { recordMiss } from '@/core/misses';
+import { seedMissedFacts } from '@/core/seedMisses';
 import { recordStageResult } from '@/core/progress';
 import type { SceneManager } from '@/core/SceneManager';
 import { AICrewmate } from '@/entities/AICrewmate';
@@ -87,7 +88,7 @@ export class GameScene implements Scene {
     this.stage = stage;
     this.scenario = scenario;
     this.mission = { ...params };
-    this.grid = new Grid(scenario.generateGrid(params.seed), (value) => scenario.isCorrect(value));
+    this.grid = new Grid(seedMissedFacts(scenario.generateGrid(params.seed), scenario), (value) => scenario.isCorrect(value));
     this.player = new Player(0, 0);
     this.grid.setHighlighted(this.player.col, this.player.row);
     this.wandererEnabled = !(params.mode === 'crew' && params.stageIndex === 0 && params.scenarioIndex === 0);
@@ -264,7 +265,7 @@ export class GameScene implements Scene {
     if (this.pendingResolution && this.eatLockMs <= 0) {
       this.pendingResolution = false;
       this.resolveAfterEat();
-      if (this.ended) {
+      if (this.ended || this.cutscene) {
         return;
       }
     }
@@ -561,7 +562,14 @@ export class GameScene implements Scene {
     }
 
     if (this.lives <= 0) {
-      this.goToGameOver();
+      // The math got you — you still get the full ejection send-off
+      this.audio.crewmateEject();
+      const isImpostor = this.mission.mode === 'impostor';
+      this.cutscene = new EjectionCutscene(
+        isImpostor ? 'You blew your cover . . .' : 'You were ejected . . .',
+        isImpostor ? COLOURS.PLAYER_IMPOSTOR : COLOURS.PLAYER_CREW,
+        () => this.goToGameOver(),
+      );
     }
   }
 

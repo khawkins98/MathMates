@@ -99,6 +99,21 @@ export function getModeProgress(stageId: string, mode: GameMode, progress = getP
 }
 
 
+/**
+ * Stage 1 is always open; each later stage unlocks when the previous stage's
+ * crew missions are complete. Impostor mode rides along with the same gate.
+ */
+export function isStageUnlocked(stageIndex: number, progress = getProgress()): boolean {
+  if (stageIndex <= 0) {
+    return true;
+  }
+  const prev = STAGES[stageIndex - 1];
+  if (!prev) {
+    return false;
+  }
+  return getModeProgress(prev.id, 'crew', progress).completed;
+}
+
 export function getNextScenarioIndex(stageId: string, mode: GameMode, progress = getProgress()): number {
   const stage = STAGES.find((candidate) => candidate.id === stageId);
   if (!stage) {
