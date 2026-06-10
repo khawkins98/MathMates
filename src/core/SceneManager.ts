@@ -12,7 +12,7 @@ export class SceneManager {
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
     this.canvas = canvas;
     this.ctx = ctx;
-    this.input = new InputManager();
+    this.input = new InputManager(canvas);
   }
 
   register(name: SceneName, scene: Scene): void {

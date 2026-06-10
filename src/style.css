@@ -19,4 +19,8 @@ body {
   image-rendering: auto;
   outline: none;
   cursor: default;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }

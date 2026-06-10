@@ -46,6 +46,11 @@ export class BriefingScene implements Scene {
       return;
     }
 
+    if (this.manager.input.shiftTap()) {
+      this.startMission();
+      return;
+    }
+
     let action = this.manager.input.shift();
     while (action) {
       if (action === 'back' || action === 'pause') {

@@ -1,11 +1,78 @@
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+
 export type InputAction = 'up' | 'down' | 'left' | 'right' | 'eat' | 'sus' | 'pause' | 'back';
+
+export interface TapPoint {
+  x: number;
+  y: number;
+}
+
+const LONG_PRESS_MS = 500;
+const TAP_MAX_DRIFT = 24;
 
 export class InputManager {
   private queue: InputAction[] = [];
+  private taps: TapPoint[] = [];
+  private longPresses: TapPoint[] = [];
   private enabled = true;
 
-  constructor() {
+  constructor(canvas?: HTMLCanvasElement) {
     window.addEventListener('keydown', (e) => this.onKey(e));
+    if (canvas) {
+      this.bindPointer(canvas);
+    }
+  }
+
+  /** Touch/mouse input: taps and long-presses, reported in logical canvas coordinates. */
+  private bindPointer(canvas: HTMLCanvasElement): void {
+    let downPos: TapPoint | null = null;
+    let longFired = false;
+    let timer: number | undefined;
+
+    const toLogical = (e: PointerEvent): TapPoint => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width),
+        y: (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height),
+      };
+    };
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!this.enabled) {
+        return;
+      }
+      e.preventDefault();
+      downPos = toLogical(e);
+      longFired = false;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (downPos) {
+          this.longPresses.push(downPos);
+          longFired = true;
+        }
+      }, LONG_PRESS_MS);
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      window.clearTimeout(timer);
+      if (!this.enabled || !downPos || longFired) {
+        downPos = null;
+        return;
+      }
+      const up = toLogical(e);
+      if (Math.hypot(up.x - downPos.x, up.y - downPos.y) <= TAP_MAX_DRIFT) {
+        this.taps.push(up);
+      }
+      downPos = null;
+    });
+
+    canvas.addEventListener('pointercancel', () => {
+      window.clearTimeout(timer);
+      downPos = null;
+    });
+
+    // Long-press on touch devices opens the context menu by default
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   private onKey(e: KeyboardEvent): void {
@@ -48,14 +115,28 @@ export class InputManager {
     return this.queue.shift();
   }
 
+  push(action: InputAction): void {
+    this.queue.push(action);
+  }
+
+  shiftTap(): TapPoint | undefined {
+    return this.taps.shift();
+  }
+
+  shiftLongPress(): TapPoint | undefined {
+    return this.longPresses.shift();
+  }
+
   clear(): void {
     this.queue = [];
+    this.taps = [];
+    this.longPresses = [];
   }
 
   setEnabled(on: boolean): void {
     this.enabled = on;
     if (!on) {
-      this.queue = [];
+      this.clear();
     }
   }
 }

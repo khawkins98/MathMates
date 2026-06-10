@@ -170,6 +170,27 @@ export function fitText(
   ctx.fillText(out, x, y);
 }
 
+/**
+ * Hit-test for drawControlsHintsBar: returns the segment index the point
+ * falls on, or null when the point is outside the bar. Must mirror the
+ * geometry used by drawControlsHintsBar.
+ */
+export function hintsBarSegmentAt(
+  x: number,
+  y: number,
+  segmentCount: number,
+  offsetFromBottom = 8,
+): number | null {
+  const barH = 36;
+  const barX = 14;
+  const barY = CANVAS_HEIGHT - barH - offsetFromBottom;
+  const barW = CANVAS_WIDTH - 28;
+  if (x < barX || x > barX + barW || y < barY || y > barY + barH) {
+    return null;
+  }
+  return Math.min(segmentCount - 1, Math.floor((x - barX) / (barW / segmentCount)));
+}
+
 export function drawButton(
   ctx: CanvasRenderingContext2D,
   x: number,

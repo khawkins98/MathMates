@@ -4,7 +4,7 @@ import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData }
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
-import { drawSpaceBackground, fitText, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
+import { drawSpaceBackground, fitText, hintsBarSegmentAt, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
 import { STAGES } from '@/stages';
 import { makeMissionSeed, type MissionParams } from './sceneParams';
 
@@ -51,6 +51,11 @@ export class SelectScene implements Scene {
 
   update(dt: number): void {
     this.elapsed += dt;
+    let tap = this.manager.input.shiftTap();
+    while (tap) {
+      this.handleTap(tap.x, tap.y);
+      tap = this.manager.input.shiftTap();
+    }
     let action = this.manager.input.shift();
     while (action) {
       if (this.step === 'stage') {
@@ -95,24 +100,69 @@ export class SelectScene implements Scene {
           case 'pause':
             this.step = 'stage';
             break;
-          case 'eat': {
-            const mode: GameMode = this.selectedModeIndex === 0 ? 'crew' : 'impostor';
-            const stage = STAGES[this.selectedStageIndex];
-            const params: MissionParams = {
-              stageId: stage.id,
-              stageIndex: this.selectedStageIndex,
-              scenarioIndex: getNextScenarioIndex(stage.id, mode, this.progress),
-              mode,
-              seed: makeMissionSeed(),
-            };
-            this.manager.goto('BRIEFING', params as unknown as Record<string, unknown>);
+          case 'eat':
+            this.startBriefing();
             return;
-          }
           default:
             break;
         }
       }
       action = this.manager.input.shift();
+    }
+  }
+
+  private startBriefing(): void {
+    const mode: GameMode = this.selectedModeIndex === 0 ? 'crew' : 'impostor';
+    const stage = STAGES[this.selectedStageIndex];
+    const params: MissionParams = {
+      stageId: stage.id,
+      stageIndex: this.selectedStageIndex,
+      scenarioIndex: getNextScenarioIndex(stage.id, mode, this.progress),
+      mode,
+      seed: makeMissionSeed(),
+    };
+    this.manager.goto('BRIEFING', params as unknown as Record<string, unknown>);
+  }
+
+  /** Tap a tile to select it; tap the selected tile again to confirm. The ESC hint segment acts as back. */
+  private handleTap(x: number, y: number): void {
+    const backSegment = hintsBarSegmentAt(x, y, 3);
+    if (backSegment === 2) {
+      if (this.step === 'mode') {
+        this.step = 'stage';
+      } else {
+        this.manager.goto('TITLE');
+      }
+      return;
+    }
+
+    if (this.step === 'stage') {
+      for (let i = 0; i < STAGES.length; i += 1) {
+        const tileX = COL_X[i % 2];
+        const tileY = TOP_Y + Math.floor(i / 2) * ROW_GAP;
+        if (x >= tileX && x <= tileX + TILE_W && y >= tileY && y <= tileY + TILE_H) {
+          if (this.selectedStageIndex === i) {
+            this.step = 'mode';
+            this.selectedModeIndex = 0;
+          } else {
+            this.selectedStageIndex = i;
+          }
+          return;
+        }
+      }
+      return;
+    }
+
+    const cards: Array<[number, number]> = [[MODE_LEFT_X, 0], [MODE_RIGHT_X, 1]];
+    for (const [cardX, index] of cards) {
+      if (x >= cardX && x <= cardX + MODE_W && y >= MODE_Y && y <= MODE_Y + MODE_H) {
+        if (this.selectedModeIndex === index) {
+          this.startBriefing();
+        } else {
+          this.selectedModeIndex = index;
+        }
+        return;
+      }
     }
   }
 

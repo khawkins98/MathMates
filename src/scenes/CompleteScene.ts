@@ -43,6 +43,21 @@ export class CompleteScene implements Scene {
 
   update(dt: number): void {
     this.elapsed += dt;
+    let tap = this.manager.input.shiftTap();
+    while (tap) {
+      const { x, y } = tap;
+      if (y >= 352 && y <= 400) {
+        if (x >= 118 && x <= 288 && this.result?.nextMission) {
+          this.manager.goto('BRIEFING', this.result.nextMission as unknown as Record<string, unknown>);
+          return;
+        }
+        if (x >= 312 && x <= 482) {
+          this.manager.goto('SELECT');
+          return;
+        }
+      }
+      tap = this.manager.input.shiftTap();
+    }
     let action = this.manager.input.shift();
     while (action) {
       switch (action) {

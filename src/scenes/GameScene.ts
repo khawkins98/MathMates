@@ -117,6 +117,8 @@ export class GameScene implements Scene {
       return;
     }
 
+    this.handlePointerInput();
+
     let moved = false;
     let action = this.manager.input.shift();
     while (action) {
@@ -147,6 +149,15 @@ export class GameScene implements Scene {
           this.grid.setHighlighted(this.player.col, this.player.row);
           moved = true;
           break;
+        default:
+          break;
+      }
+      if (moved) {
+        // One step per frame: buffered moves (key mashing or tap paths) play
+        // out cell by cell so the wanderer collision check can't be skipped.
+        break;
+      }
+      switch (action) {
         case 'sus':
           this.grid.toggleSus(this.player.col, this.player.row);
           break;
@@ -204,6 +215,85 @@ export class GameScene implements Scene {
     }
 
     this.syncHud();
+  }
+
+  private handlePointerInput(): void {
+    let tap = this.manager.input.shiftTap();
+    while (tap) {
+      this.handleTap(tap.x, tap.y);
+      tap = this.manager.input.shiftTap();
+    }
+    let press = this.manager.input.shiftLongPress();
+    while (press) {
+      this.handleLongPress(press.x, press.y);
+      press = this.manager.input.shiftLongPress();
+    }
+  }
+
+  private handleTap(x: number, y: number): void {
+    if (this.paused) {
+      // Bottom strip of the pause panel quits to stage select; anywhere else resumes.
+      const inPanel = x >= 160 && x <= 440 && y >= 140 && y <= 290;
+      if (inPanel && y >= 235) {
+        this.manager.goto('SELECT');
+        return;
+      }
+      this.paused = false;
+      return;
+    }
+    const cell = this.cellFromPoint(x, y);
+    if (!cell) {
+      return;
+    }
+    if (cell.col === this.player.col && cell.row === this.player.row) {
+      if (this.eatLockMs <= 0) {
+        this.handleEat();
+      }
+      return;
+    }
+    this.enqueueStepsTo(cell.col, cell.row);
+  }
+
+  private handleLongPress(x: number, y: number): void {
+    if (this.paused) {
+      return;
+    }
+    const cell = this.cellFromPoint(x, y);
+    if (cell) {
+      this.grid?.toggleSus(cell.col, cell.row);
+    } else {
+      this.paused = true;
+    }
+  }
+
+  private cellFromPoint(x: number, y: number): { col: number; row: number } | null {
+    const pitch = CELL_SIZE + CELL_GAP;
+    const col = Math.floor((x - GRID_OFFSET_X) / pitch);
+    const row = Math.floor((y - GRID_OFFSET_Y) / pitch);
+    if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
+      return null;
+    }
+    return { col, row };
+  }
+
+  /** Queue arrow steps along the shortest wrapped path; they play out one per frame. */
+  private enqueueStepsTo(col: number, row: number): void {
+    const step = (from: number, to: number, size: number): { dir: 1 | -1 | 0; count: number } => {
+      const forward = (to - from + size) % size;
+      const backward = (from - to + size) % size;
+      if (forward === 0) {
+        return { dir: 0, count: 0 };
+      }
+      return forward <= backward ? { dir: 1, count: forward } : { dir: -1, count: backward };
+    };
+    const h = step(this.player.col, col, GRID_COLS);
+    const v = step(this.player.row, row, GRID_ROWS);
+    for (let i = 0; i < h.count; i += 1) {
+      this.manager.input.push(h.dir > 0 ? 'right' : 'left');
+    }
+    for (let i = 0; i < v.count; i += 1) {
+      this.manager.input.push(v.dir > 0 ? 'down' : 'up');
+    }
   }
 
   private handleEat(): void {
@@ -503,8 +593,8 @@ export class GameScene implements Scene {
       ctx.fillText('PAUSED', CANVAS_WIDTH / 2, 178);
       ctx.font = "15px 'Fredoka One', sans-serif";
       ctx.fillStyle = '#c8e8e0';
-      ctx.fillText('Space or Esc to resume', CANVAS_WIDTH / 2, 220);
-      ctx.fillText('Backspace returns to stage select', CANVAS_WIDTH / 2, 248);
+      ctx.fillText('Tap or press Space to resume', CANVAS_WIDTH / 2, 220);
+      ctx.fillText('Tap here or Backspace for stage select', CANVAS_WIDTH / 2, 248);
       ctx.restore();
     }
   }

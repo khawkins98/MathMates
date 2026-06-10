@@ -35,6 +35,10 @@ export class TitleScene implements Scene {
 
   update(dt: number): void {
     this.elapsed += dt;
+    if (this.manager.input.shiftTap()) {
+      this.manager.goto('SELECT');
+      return;
+    }
     let action = this.manager.input.shift();
     while (action) {
       if (action === 'eat') {
