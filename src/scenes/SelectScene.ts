@@ -1,6 +1,6 @@
 import type { Scene, GameMode } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
-import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData } from '@/core/progress';
+import { getModeProgress, getNextScenarioIndex, getProgress, isStageUnlocked, type ProgressData } from '@/core/progress';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
@@ -78,6 +78,9 @@ export class SelectScene implements Scene {
             this.manager.goto('TITLE');
             return;
           case 'eat':
+            if (!isStageUnlocked(this.selectedStageIndex, this.progress)) {
+              break;
+            }
             this.step = 'mode';
             this.selectedModeIndex = 0;
             break;
@@ -141,7 +144,7 @@ export class SelectScene implements Scene {
         const tileX = COL_X[i % 2];
         const tileY = TOP_Y + Math.floor(i / 2) * ROW_GAP;
         if (x >= tileX && x <= tileX + TILE_W && y >= tileY && y <= tileY + TILE_H) {
-          if (this.selectedStageIndex === i) {
+          if (this.selectedStageIndex === i && isStageUnlocked(i, this.progress)) {
             this.step = 'mode';
             this.selectedModeIndex = 0;
           } else {
@@ -197,6 +200,11 @@ export class SelectScene implements Scene {
   private drawStageTile(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {
     const stage = STAGES[index];
     const selected = this.selectedStageIndex === index;
+    const unlocked = isStageUnlocked(index, this.progress);
+    if (!unlocked) {
+      this.drawLockedTile(ctx, index, x, y, selected);
+      return;
+    }
     const crewDone = getModeProgress(stage.id, 'crew', this.progress).completed;
     const impostorDone = getModeProgress(stage.id, 'impostor', this.progress).completed;
     const r = 8;
@@ -273,6 +281,57 @@ export class SelectScene implements Scene {
       }
     }
 
+    ctx.restore();
+  }
+
+  /** Locked stage: dimmed silhouette, a padlock, and what to do about it. */
+  private drawLockedTile(ctx: CanvasRenderingContext2D, index: number, x: number, y: number, selected: boolean): void {
+    const stage = STAGES[index];
+    const prev = STAGES[index - 1];
+    const r = 8;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    rrect(ctx, x + 3, y + 4, TILE_W, TILE_H, r);
+    ctx.fill();
+
+    ctx.fillStyle = '#2a3636';
+    rrect(ctx, x, y, TILE_W, TILE_H, r);
+    ctx.fill();
+    ctx.strokeStyle = selected ? '#5a8080' : '#3a4c4c';
+    ctx.lineWidth = selected ? 2.5 : 1.5;
+    rrect(ctx, x, y, TILE_W, TILE_H, r);
+    ctx.stroke();
+
+    // Padlock where the icon badge sits
+    const lockCX = x + 33;
+    const lockCY = y + TILE_H / 2 + 4;
+    ctx.strokeStyle = '#5a7070';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(lockCX, lockCY - 7, 7, Math.PI, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#46605c';
+    rrect(ctx, lockCX - 11, lockCY - 7, 22, 17, 3);
+    ctx.fill();
+    ctx.strokeStyle = '#2a3c3c';
+    ctx.lineWidth = 1;
+    rrect(ctx, lockCX - 11, lockCY - 7, 22, 17, 3);
+    ctx.stroke();
+    ctx.fillStyle = '#22312f';
+    ctx.beginPath();
+    ctx.arc(lockCX, lockCY + 1, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const tX = x + 66;
+    ctx.font = "bold 14px 'Fredoka One', sans-serif";
+    ctx.fillStyle = '#5a7070';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stage.title, tX, y + 22);
+
+    ctx.fillStyle = selected ? '#8aa8a8' : '#4a6060';
+    fitText(ctx, prev ? `Finish ${prev.title} to unlock!` : 'Locked', tX, y + 44, x + TILE_W - 10 - tX, 12, "'Fredoka One', sans-serif", 10);
     ctx.restore();
   }
 

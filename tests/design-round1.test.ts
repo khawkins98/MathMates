@@ -163,3 +163,47 @@ describe('hungry impostor grid support', () => {
     expect(grid.getCorrectAvailablePositions()).toHaveLength(7);
   });
 });
+
+describe('stage gating', () => {
+  it('stage 1 is always open; later stages need the previous crew clear', async () => {
+    const { isStageUnlocked } = await import('@/core/progress');
+    store.clear();
+    expect(isStageUnlocked(0)).toBe(true);
+    expect(isStageUnlocked(1)).toBe(false);
+    const stage0 = STAGES[0];
+    for (let i = 0; i < stage0.scenarios.length; i += 1) {
+      recordStageResult(stage0.id, 'crew', i, 100, 60000, 1);
+    }
+    expect(isStageUnlocked(1)).toBe(true);
+    expect(isStageUnlocked(2)).toBe(false);
+  });
+});
+
+describe('missed-fact seeding', () => {
+  it('plants a topic-compatible missed fact as a correct cell', async () => {
+    const { seedMissedFacts } = await import('@/core/seedMisses');
+    store.clear();
+    // "7 + 8" eaten (wrongly) on the add-to-20 board; it is correct on add-to-15
+    recordMiss('7 + 8', 15, 'addition-4');
+    const scenario = SCENARIO_REGISTRY.get('addition-3')!; // Add to 15
+    const values = scenario.generateGrid(42);
+    const seeded = seedMissedFacts(values, scenario);
+    expect(seeded.some((v) => v.display === '7 + 8')).toBe(true);
+    // correct/wrong balance unchanged
+    const correctBefore = values.filter((v) => scenario.isCorrect(v)).length;
+    const correctAfter = seeded.filter((v) => scenario.isCorrect(v)).length;
+    expect(correctAfter).toBe(correctBefore);
+    expect(seeded).toHaveLength(values.length);
+  });
+
+  it('never seeds across topics or seeds facts wrong under the current rule', async () => {
+    const { seedMissedFacts } = await import('@/core/seedMisses');
+    store.clear();
+    recordMiss('7 + 8', 15, 'addition-4');     // addition topic
+    recordMiss('9 − 2', 7, 'subtraction-2');   // would be wrong on add-to-15 anyway
+    const multiples = SCENARIO_REGISTRY.get('multiples-5')!;
+    const values = multiples.generateGrid(7);
+    const seeded = seedMissedFacts(values, multiples);
+    expect(seeded).toEqual(values); // "7 + 8" is numeric 15 (a multiple of 5) but wrong topic
+  });
+});
