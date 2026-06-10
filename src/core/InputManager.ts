@@ -1,4 +1,4 @@
-export type InputAction = 'up' | 'down' | 'left' | 'right' | 'eat' | 'sus' | 'pause' | 'confirm' | 'back';
+export type InputAction = 'up' | 'down' | 'left' | 'right' | 'eat' | 'sus' | 'pause' | 'back';
 
 export class InputManager {
   private queue: InputAction[] = [];
@@ -57,9 +57,5 @@ export class InputManager {
     if (!on) {
       this.queue = [];
     }
-  }
-
-  isEnabled(): boolean {
-    return this.enabled;
   }
 }

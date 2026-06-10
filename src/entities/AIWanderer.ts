@@ -1,4 +1,4 @@
-import { GRID_COLS, GRID_ROWS } from '@/constants';
+import { CELL_SPRITE_ANCHOR_Y, CELL_SPRITE_CENTER_X, GRID_COLS, GRID_ROWS } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import type { Grid } from './Grid';
@@ -33,7 +33,11 @@ export class AIWanderer {
       edges.push({ col: 0, row: r });
       edges.push({ col: GRID_COLS - 1, row: r });
     }
-    const far = edges.filter((edge) => Math.abs(edge.col - avoidCol) + Math.abs(edge.row - avoidRow) > 3);
+    const wrapped = (a: number, b: number, size: number): number => {
+      const d = Math.abs(a - b);
+      return Math.min(d, size - d);
+    };
+    const far = edges.filter((edge) => wrapped(edge.col, avoidCol, GRID_COLS) + wrapped(edge.row, avoidRow, GRID_ROWS) > 3);
     const pool = far.length > 0 ? far : edges;
     const pick = pool[Math.floor(Math.random() * pool.length)];
     this._col = pick.col;
@@ -61,6 +65,6 @@ export class AIWanderer {
   draw(rr: RoughRenderer, grid: Grid, elapsed: number): void {
     const { x, y } = grid.cellScreenPos(this._col, this._row);
     const seed = Math.floor(elapsed / 300);
-    rr.crewmate(x + 40, y + 53, COLOURS.AI_WANDERER, seed, 0.85);
+    rr.crewmate(x + CELL_SPRITE_CENTER_X, y + CELL_SPRITE_ANCHOR_Y, COLOURS.AI_WANDERER, seed, 0.85);
   }
 }

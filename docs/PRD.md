@@ -236,7 +236,7 @@ Rough.js renders into a Canvas 2D context on each frame (or into an `OffscreenCa
 src/
   core/
     GameLoop.ts        # requestAnimationFrame loop, dt clamping
-    SceneManager.ts    # Scene stack, push/pop/goto
+    SceneManager.ts    # goto-based scene switching
     InputManager.ts    # Keyboard queue (same pattern as v1)
   scenes/
     TitleScene.ts

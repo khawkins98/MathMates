@@ -8,7 +8,6 @@ const CELL_COLOURS: Record<CellState, { fill: string; stroke: string }> = {
   highlighted: { fill: COLOURS.CELL_HIGHLIGHTED, stroke: COLOURS.CELL_HIGHLIGHTED_STROKE },
   consumed: { fill: COLOURS.CELL_CONSUMED, stroke: COLOURS.CELL_CONSUMED_STROKE },
   broken: { fill: COLOURS.CELL_BROKEN, stroke: COLOURS.CELL_BROKEN_STROKE },
-  sus: { fill: COLOURS.CELL_NORMAL, stroke: COLOURS.CELL_NORMAL_STROKE },
   correct_flash: { fill: COLOURS.CELL_CORRECT_FLASH, stroke: COLOURS.CELL_CORRECT_FLASH_STROKE },
   error_flash: { fill: COLOURS.CELL_ERROR_FLASH, stroke: COLOURS.CELL_ERROR_FLASH_STROKE },
 };
@@ -55,7 +54,7 @@ export class Cell {
   }
 
   toggleSus(): void {
-    if (this._state === 'normal' || this._state === 'highlighted' || this._state === 'sus') {
+    if (this._state === 'normal' || this._state === 'highlighted') {
       this._sus = !this._sus;
     }
   }

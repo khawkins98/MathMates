@@ -6,18 +6,7 @@ import { drawSpaceBackground, drawOutlinedText, drawPanel, makeStars, type Star 
 import { SCENARIO_REGISTRY } from '@/scenarios';
 import { STAGES } from '@/stages';
 import type { GameMode, ScenarioDefinition } from '@/types';
-import type { MissionParams } from './sceneParams';
-
-function isMissionParams(value: unknown): value is MissionParams {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-  const candidate = value as Partial<MissionParams>;
-  return typeof candidate.stageId === 'string'
-    && typeof candidate.stageIndex === 'number'
-    && typeof candidate.scenarioIndex === 'number'
-    && (candidate.mode === 'crew' || candidate.mode === 'impostor');
-}
+import { isMissionParams, type MissionParams } from './sceneParams';
 
 export class BriefingScene implements Scene {
   private manager: SceneManager;
@@ -63,7 +52,7 @@ export class BriefingScene implements Scene {
         this.manager.goto('SELECT');
         return;
       }
-      if (action === 'eat' || action === 'confirm') {
+      if (action === 'eat') {
         this.startMission();
         return;
       }

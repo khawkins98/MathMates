@@ -1,4 +1,5 @@
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
+import { COLOURS } from '@/rendering/colours';
 
 export interface Star {
   x: number;
@@ -21,7 +22,7 @@ export function drawSpaceBackground(
   elapsedMs: number,
   stars: Star[],
 ): void {
-  ctx.fillStyle = '#0a0e10';
+  ctx.fillStyle = COLOURS.BG;
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
   for (const s of stars) {
@@ -177,7 +178,6 @@ export function drawButton(
   h: number,
   label: string,
   selected: boolean,
-  elapsed = 0,
 ): void {
   ctx.save();
 
@@ -216,7 +216,6 @@ export function drawButton(
   ctx.fillText(label, x + w / 2, y + h / 2);
 
   ctx.restore();
-  void elapsed; // unused but kept for API stability
 }
 
 export function drawPanel(

@@ -1,7 +1,7 @@
 import { CANVAS_WIDTH } from '@/constants';
 import type { SceneManager } from '@/core/SceneManager';
 import { COLOURS } from '@/rendering/colours';
-import { drawSpaceBackground, drawButton, makeStars, type Star } from '@/rendering/drawHelpers';
+import { drawSpaceBackground, drawButton, drawPanel, makeStars, type Star } from '@/rendering/drawHelpers';
 import type { Scene } from '@/types';
 import type { GameOverSceneParams } from './sceneParams';
 
@@ -33,6 +33,7 @@ export class GameOverScene implements Scene {
     }
     this.result = params;
     this.selectedButton = 0;
+    this.manager.input.setEnabled(true);
   }
 
   exit(): void {}
@@ -55,7 +56,6 @@ export class GameOverScene implements Scene {
           this.manager.goto('SELECT');
           return;
         case 'eat':
-        case 'confirm':
           if (this.selectedButton === 0 && this.result) {
             this.manager.goto('BRIEFING', this.result.retryMission as unknown as Record<string, unknown>);
             return;
@@ -72,17 +72,7 @@ export class GameOverScene implements Scene {
   draw(ctx: CanvasRenderingContext2D): void {
     drawSpaceBackground(ctx, this.elapsed, this.stars);
 
-    // Panel
-    const panelX = 70, panelY = 56, panelW = 460, panelH = 258;
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.fillRect(panelX + 4, panelY + 5, panelW, panelH);
-    ctx.fillStyle = '#3a1020';
-    ctx.fillRect(panelX, panelY, panelW, panelH);
-    ctx.strokeStyle = COLOURS.DANGER;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(panelX, panelY, panelW, panelH);
-    ctx.restore();
+    drawPanel(ctx, 70, 56, 460, 258, '#3a1020', COLOURS.DANGER, 3);
 
     ctx.save();
     ctx.textAlign = 'center';
@@ -113,7 +103,7 @@ export class GameOverScene implements Scene {
     ctx.fillText('Try again, or head back to the stage map.', CANVAS_WIDTH / 2, 242);
     ctx.restore();
 
-    drawButton(ctx, 126, 338, 150, 48, 'Try Again', this.selectedButton === 0, this.elapsed);
-    drawButton(ctx, 324, 338, 150, 48, 'Select Stage', this.selectedButton === 1, this.elapsed);
+    drawButton(ctx, 126, 338, 150, 48, 'Try Again', this.selectedButton === 0);
+    drawButton(ctx, 324, 338, 150, 48, 'Select Stage', this.selectedButton === 1);
   }
 }

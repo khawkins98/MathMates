@@ -5,8 +5,9 @@
  * immediately obvious. Access from the title screen by pressing ` (backtick).
  * Press Esc / Z / Backspace to return to the title.
  *
- * This scene is never reachable from normal gameplay — it is registered in
- * main.ts only in development builds.
+ * This scene is never reachable from normal gameplay — main.ts registers it
+ * (and TitleScene listens for backtick) only when import.meta.env.DEV is true,
+ * so it is excluded from production builds.
  */
 import type { Scene } from '@/types';
 import type { SceneManager } from '@/core/SceneManager';
@@ -295,8 +296,8 @@ export class UIKitScene implements Scene {
   private drawButtonsSection(ctx: CanvasRenderingContext2D, sy: number): void {
     this.sectionHeader(ctx, 'BUTTONS', RX, sy + 10);
     const btnW = (RW - 8) / 2, btnH = 34;
-    drawButton(ctx, RX, sy + 18, btnW, btnH, 'Normal', false, this.elapsed);
-    drawButton(ctx, RX + btnW + 8, sy + 18, btnW, btnH, 'Selected', true, this.elapsed);
+    drawButton(ctx, RX, sy + 18, btnW, btnH, 'Normal', false);
+    drawButton(ctx, RX + btnW + 8, sy + 18, btnW, btnH, 'Selected', true);
   }
 
   /** PANEL — drawPanel sample. Occupies y=240–308. */

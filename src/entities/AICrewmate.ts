@@ -1,4 +1,5 @@
-import { GRID_COLS, GRID_ROWS } from '@/constants';
+import { CELL_SPRITE_ANCHOR_Y, CELL_SPRITE_CENTER_X, GRID_COLS, GRID_ROWS } from '@/constants';
+import { COLOURS } from '@/rendering/colours';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
 import type { Grid } from './Grid';
 
@@ -11,9 +12,9 @@ interface AIPersonality {
 }
 
 const PERSONALITIES: AIPersonality[] = [
-  { name: 'diligent', colour: '#ffd93d', moveInterval: 1100, dwellDuration: 3500, seekBroken: 0.55 },
-  { name: 'wanderer', colour: '#6bcb77', moveInterval: 1300, dwellDuration: 4500, seekBroken: 0.25 },
-  { name: 'keen', colour: '#c77dff', moveInterval: 900, dwellDuration: 3000, seekBroken: 0.70 },
+  { name: 'diligent', colour: COLOURS.AI_CREW_1, moveInterval: 1100, dwellDuration: 3500, seekBroken: 0.55 },
+  { name: 'wanderer', colour: COLOURS.AI_CREW_2, moveInterval: 1300, dwellDuration: 4500, seekBroken: 0.25 },
+  { name: 'keen', colour: COLOURS.AI_CREW_3, moveInterval: 900, dwellDuration: 3000, seekBroken: 0.70 },
 ];
 
 function shortestWrappedStep(from: number, to: number, size: number): -1 | 0 | 1 {
@@ -61,11 +62,6 @@ export class AICrewmate {
 
   get alive(): boolean {
     return this._alive;
-  }
-
-  spawnAt(col: number, row: number): void {
-    this._col = col;
-    this._row = row;
   }
 
   eliminate(): void {
@@ -164,6 +160,6 @@ export class AICrewmate {
     const { x, y } = grid.cellScreenPos(this._col, this._row);
     const pulse = this.isDwelling ? 1 + 0.15 * Math.sin(this.dwellElapsed * 0.01) : 1;
     const seed = Math.floor(this.elapsed / 300);
-    rr.crewmate(x + 40, y + 54, this.personality.colour, seed, 0.72 * pulse);
+    rr.crewmate(x + CELL_SPRITE_CENTER_X, y + CELL_SPRITE_ANCHOR_Y, this.personality.colour, seed, 0.72 * pulse);
   }
 }

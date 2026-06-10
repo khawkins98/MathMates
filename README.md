@@ -52,22 +52,22 @@ A scenario is one small TypeScript file implementing `ScenarioDefinition`. It co
 // src/scenarios/doubles.ts
 import type { ScenarioDefinition } from '@/types';
 
-const doubles: ScenarioDefinition = {
+export const doubles1: ScenarioDefinition = {
   id: 'doubles-1',
   title: 'Doubles',
   topic: 'addition',
   ruleText: 'Find the doubles',
+  impostorRuleText: 'Break the numbers that are NOT doubles',
   briefingText: 'Find every number that is a double!',
   ksYears: [1],
   difficulty: 1,
-  generateGrid(seed) { /* return 20 CellValues */ },
+  parTime: 90,
+  generateGrid(seed) { /* return 20 CellValues — use buildGrid() from './helpers' */ },
   isCorrect(value) { return value.numeric % 2 === 0; },
 };
-
-export default doubles;
 ```
 
-Then register it in `src/scenarios/index.ts`. No other files need changing.
+Then add it to the `SCENARIO_REGISTRY` map in `src/scenarios/index.ts` and reference its id from a stage in `src/stages/index.ts`. No other files need changing.
 
 See [`docs/PRD.md`](docs/PRD.md) for the full `ScenarioDefinition` spec and architectural overview.
 

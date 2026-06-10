@@ -33,6 +33,10 @@ export class SceneManager {
     this.current.enter(params);
   }
 
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas;
+  }
+
   update(dt: number): void {
     this.current?.update(dt);
   }
@@ -41,14 +45,6 @@ export class SceneManager {
     if (this.current) {
       this.current.draw(this.ctx);
     }
-  }
-
-  getCanvas(): HTMLCanvasElement {
-    return this.canvas;
-  }
-
-  getCtx(): CanvasRenderingContext2D {
-    return this.ctx;
   }
 
   getCurrentName(): SceneName | null {
