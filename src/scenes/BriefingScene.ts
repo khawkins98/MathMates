@@ -102,10 +102,10 @@ export class BriefingScene implements Scene {
     // Mode badge
     ctx.font = "13px 'Fredoka One', sans-serif";
     ctx.fillStyle = accent;
-    ctx.fillText(mode === 'crew' ? '🚀 Crew briefing' : '👾 Impostor briefing', CANVAS_WIDTH / 2, 76);
+    ctx.fillText(mode === 'crew' ? 'CREW BRIEFING' : 'IMPOSTOR BRIEFING', CANVAS_WIDTH / 2, 76);
 
     // Stage title
-    drawOutlinedText(ctx, stage ? `${stage.icon} ${stage.title}` : 'Mission', CANVAS_WIDTH / 2, 118, 24, '#f0fafa', '#080c0c', 5, "'Fredoka One', sans-serif");
+    drawOutlinedText(ctx, stage ? stage.title : 'Mission', CANVAS_WIDTH / 2, 118, 24, '#f0fafa', '#080c0c', 5, "'Fredoka One', sans-serif");
 
     // Scenario title
     ctx.font = "20px 'Fredoka One', sans-serif";

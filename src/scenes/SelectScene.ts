@@ -188,10 +188,11 @@ export class SelectScene implements Scene {
     rrect(ctx, bX, bY, bSz, bSz, 6);
     ctx.stroke();
 
-    ctx.font = '22px sans-serif';
+    ctx.font = stage.icon.length === 1 ? "18px 'Press Start 2P', monospace" : "11px 'Press Start 2P', monospace";
+    ctx.fillStyle = stage.iconColour;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(stage.icon, bX + bSz / 2, bY + bSz / 2);
+    ctx.fillText(stage.icon, bX + bSz / 2, bY + bSz / 2 + 1);
 
     const tX = x + 66;
     ctx.font = "bold 14px 'Fredoka One', sans-serif";

@@ -25,6 +25,7 @@ export interface StageDefinition {
   title: string;
   description: string;
   icon: string;
+  iconColour: string;
   scenarios: string[];
 }
 

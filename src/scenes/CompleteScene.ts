@@ -114,7 +114,7 @@ export class CompleteScene implements Scene {
     ctx.fillText(`Lives left ${result?.lives ?? 0}`, CANVAS_WIDTH / 2, 250);
     if (result?.bonusAwarded) {
       ctx.fillStyle = COLOURS.GOLD;
-      ctx.fillText('⭐ Par time bonus +50!', CANVAS_WIDTH / 2, 276);
+      ctx.fillText('Par time bonus +50!', CANVAS_WIDTH / 2, 276);
     }
     ctx.restore();
 

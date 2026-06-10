@@ -59,15 +59,17 @@ export class HUD {
     ctx.lineTo(CANVAS_WIDTH, hudHeight);
     ctx.stroke();
 
-    // Mode + rule text
-    const modeLabel = this.impostorMode ? '👾 IMPOSTOR' : '🚀 CREW';
-    ctx.fillStyle = this.impostorMode ? COLOURS.DANGER : COLOURS.PLAYER_CREW;
+    // Mode + rule text — mini crewmate sprite stands in for the old emoji
+    const modeColour = this.impostorMode ? COLOURS.DANGER : COLOURS.PLAYER_CREW;
+    const modeLabel = this.impostorMode ? 'IMPOSTOR' : 'CREW';
+    rr.crewmate(18, 14, modeColour, 1, 0.38);
+    ctx.fillStyle = modeColour;
     ctx.font = "13px 'Fredoka One', sans-serif";
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(modeLabel, 10, 16);
+    ctx.fillText(modeLabel, 32, 16);
     ctx.fillStyle = COLOURS.TEXT_HUD;
-    ctx.fillText(` — ${this.ruleText}`, 10 + ctx.measureText(modeLabel).width, 16);
+    ctx.fillText(` — ${this.ruleText}`, 32 + ctx.measureText(modeLabel).width, 16);
 
     // Score (right side)
     ctx.textAlign = 'right';
