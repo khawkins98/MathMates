@@ -1,5 +1,6 @@
 import { CANVAS_WIDTH, GRID_OFFSET_Y } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
+import { fitText } from '@/rendering/drawHelpers';
 import type { RoughRenderer } from '@/rendering/RoughRenderer';
 
 export class HUD {
@@ -59,7 +60,8 @@ export class HUD {
     ctx.lineTo(CANVAS_WIDTH, hudHeight);
     ctx.stroke();
 
-    // Mode + rule text — mini crewmate sprite stands in for the old emoji
+    // Row 1: mode badge (mini crewmate + label). Rule lives on row 2 so it
+    // can never run underneath the centred progress bar.
     const modeColour = this.impostorMode ? COLOURS.DANGER : COLOURS.PLAYER_CREW;
     const modeLabel = this.impostorMode ? 'IMPOSTOR' : 'CREW';
     rr.crewmate(18, 14, modeColour, 1, 0.38);
@@ -68,8 +70,11 @@ export class HUD {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(modeLabel, 32, 16);
+
+    // Row 2: the rule — the single most important line for the player
     ctx.fillStyle = COLOURS.TEXT_HUD;
-    ctx.fillText(` — ${this.ruleText}`, 32 + ctx.measureText(modeLabel).width, 16);
+    ctx.textAlign = 'left';
+    fitText(ctx, this.ruleText, 132, 56, CANVAS_WIDTH - 132 - 60, 14, "'Fredoka One', sans-serif", 11);
 
     // Score (right side)
     ctx.textAlign = 'right';
