@@ -439,7 +439,7 @@ export class GameScene implements Scene {
     this.hud.setScore(this.score);
     this.hud.setMultiplier(this.multiplier);
     this.hud.setLives(this.lives, STARTING_LIVES);
-    this.hud.setRule(this.scenario.ruleText);
+    this.hud.setRule(this.mission.mode === 'impostor' ? this.scenario.impostorRuleText : this.scenario.ruleText);
     this.hud.setImpostorMode(this.mission.mode === 'impostor');
     this.hud.setProgress(
       this.mission.mode === 'crew' ? this.grid.correctEaten : this.grid.wrongEaten,

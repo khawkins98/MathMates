@@ -12,6 +12,7 @@ function makeSubtractionScenario(
     title: `Subtract to ${target}`,
     topic: 'subtraction',
     ruleText: `Find differences equal to ${target}`,
+    impostorRuleText: `Break differences that do NOT equal ${target}`,
     briefingText: brief,
     ksYears: difficulty === 1 ? [1] : [1, 2],
     difficulty,

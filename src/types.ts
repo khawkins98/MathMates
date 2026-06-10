@@ -12,6 +12,8 @@ export interface ScenarioDefinition {
   title: string;
   topic: string;
   ruleText: string;
+  /** Inverted goal text shown in impostor mode (break the wrong answers). */
+  impostorRuleText: string;
   briefingText: string;
   ksYears: number[];
   difficulty: 1 | 2 | 3;

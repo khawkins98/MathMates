@@ -12,6 +12,7 @@ function makeAdditionScenario(
     title: `Add to ${target}`,
     topic: 'addition',
     ruleText: `Find sums equal to ${target}`,
+    impostorRuleText: `Break sums that do NOT equal ${target}`,
     briefingText: brief,
     ksYears: difficulty === 1 ? [1] : [1, 2],
     difficulty,

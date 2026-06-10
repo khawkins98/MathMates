@@ -65,6 +65,13 @@ async function startGame(): Promise<void> {
 
   manager.goto('TITLE');
 
+  if (import.meta.env.DEV) {
+    // Dev/test hook: lets automated browser tests inspect scene state
+    // (e.g. read the grid to script a full playthrough). Stripped from
+    // production builds by Vite's dead-code elimination.
+    (window as unknown as Record<string, unknown>).__mm = { manager };
+  }
+
   const loop = new GameLoop((dt) => {
     manager.update(dt);
     ctx!.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);

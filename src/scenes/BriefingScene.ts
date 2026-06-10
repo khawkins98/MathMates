@@ -115,12 +115,16 @@ export class BriefingScene implements Scene {
     // Rule text
     ctx.font = "17px 'Fredoka One', sans-serif";
     ctx.fillStyle = accent;
-    ctx.fillText(scenario?.ruleText ?? '', CANVAS_WIDTH / 2, 188);
+    const ruleLine = mode === 'impostor' ? scenario?.impostorRuleText : scenario?.ruleText;
+    ctx.fillText(ruleLine ?? '', CANVAS_WIDTH / 2, 188);
 
     // Briefing text (wrapped)
     ctx.font = "16px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#c8e0e0';
-    this.drawWrappedText(ctx, scenario?.briefingText ?? '', CANVAS_WIDTH / 2, 232, 440, 26);
+    const body = mode === 'impostor'
+      ? 'You are the impostor! Sneak around and break every wrong answer — but leave the correct ones alone!'
+      : scenario?.briefingText ?? '';
+    this.drawWrappedText(ctx, body, CANVAS_WIDTH / 2, 232, 440, 26);
 
     // Hint
     ctx.font = "12px 'Fredoka One', sans-serif";
