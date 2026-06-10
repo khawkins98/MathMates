@@ -26,11 +26,12 @@ function makeSubtractionScenario(
       for (let a = target; a <= maxMinuend; a += 1) {
         correct.push({ display: `${a} − ${a - target}`, numeric: target });
       }
+      const minDistance = difficulty === 1 ? 2 : 1;
       for (let a = 1; a <= maxMinuend; a += 1) {
         for (let b = 0; b < a; b += 1) {
           const diff = a - b;
           const distance = Math.abs(diff - target);
-          if (distance >= 1 && distance <= 4) {
+          if (distance >= minDistance && distance <= 4) {
             wrong.push({ display: `${a} − ${b}`, numeric: diff });
           }
         }

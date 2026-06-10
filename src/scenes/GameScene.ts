@@ -147,11 +147,11 @@ export class GameScene implements Scene {
     }
 
     if (this.errorFreeze) {
-      // Teaching moment: hold the action while the child reads why the
-      // answer was wrong. Any input skips it early.
+      // Teaching moment: hold the action until the child says they're ready.
+      // A short grace period stops a buffered keypress from skipping it unread.
       this.errorFreeze.remainingMs -= dt;
       const skip = this.manager.input.shift() || this.manager.input.shiftTap();
-      if (this.errorFreeze.remainingMs <= 0 || skip) {
+      if (skip && this.errorFreeze.remainingMs <= 1600) {
         this.errorFreeze = null;
         this.manager.input.clear();
       }
@@ -740,7 +740,9 @@ export class GameScene implements Scene {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#dde7f6';
     ctx.font = "14px 'Fredoka One', sans-serif";
-    ctx.fillText(this.statusText, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
+    if (!this.paused) {
+      ctx.fillText(this.statusText, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
+    }
     ctx.restore();
 
     this.effects.draw(ctx);

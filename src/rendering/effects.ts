@@ -48,7 +48,7 @@ export class Effects {
     this.popups.push({ x, y, text, colour, ageMs: 0 });
   }
 
-  burst(x: number, y: number, colours: string[], count = 8): void {
+  burst(x: number, y: number, colours: string[], count = 12): void {
     for (let i = 0; i < count; i += 1) {
       const angle = (Math.PI * 2 * i) / count + Math.random() * 0.6;
       const speed = 0.06 + Math.random() * 0.08;
@@ -59,7 +59,7 @@ export class Effects {
         vy: Math.sin(angle) * speed - 0.04,
         rot: Math.random() * Math.PI,
         vrot: (Math.random() - 0.5) * 0.01,
-        size: 4 + Math.random() * 4,
+        size: 5 + Math.random() * 5,
         colour: colours[i % colours.length],
         shape: i % 2 === 0 ? 'star' : 'plus',
         ageMs: 0,
@@ -200,6 +200,10 @@ export class Effects {
       ctx.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 30);
       ctx.scale(scale, scale);
       ctx.font = "26px 'Press Start 2P', monospace";
+      // Dim plate so the stamp never fights cell text or score popups
+      const plateW = ctx.measureText(this.stamp.text).width + 48;
+      ctx.fillStyle = 'rgba(0, 6, 10, 0.78)';
+      ctx.fillRect(-plateW / 2, -26, plateW, 52);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.lineJoin = 'round';

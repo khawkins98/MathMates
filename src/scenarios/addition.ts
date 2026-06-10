@@ -24,16 +24,18 @@ function makeAdditionScenario(
         const b = target - a;
         correct.push({ display: `${a} + ${b}`, numeric: target });
       }
-      // Distractors are near-misses (within ±1..4 of the target) drawn from the
-      // SAME operand range as the correct answers. Two rules this enforces:
-      // no "9 + 9" noise on an add-to-5 board, and no "operands over 10 are
-      // always correct" tell on the add-to-15/20 boards.
+      // Distractors are near-misses drawn from the SAME operand range as the
+      // correct answers. Two rules this enforces: no "9 + 9" noise on an
+      // add-to-5 board, and no "operands over 10 are always correct" tell on
+      // the add-to-15/20 boards. Difficulty 1 keeps off-by-one out of the
+      // pool so the youngest players still get bankable early wins.
       const maxOperand = target;
+      const minDistance = difficulty === 1 ? 2 : 1;
       for (let a = 0; a <= maxOperand; a += 1) {
         for (let b = 0; b <= maxOperand; b += 1) {
           const sum = a + b;
           const distance = Math.abs(sum - target);
-          if (distance >= 1 && distance <= 4 && sum >= 0 && sum <= 20) {
+          if (distance >= minDistance && distance <= 4 && sum >= 0 && sum <= 20) {
             wrong.push({ display: `${a} + ${b}`, numeric: sum });
           }
         }

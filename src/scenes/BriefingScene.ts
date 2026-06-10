@@ -177,17 +177,13 @@ export class BriefingScene implements Scene {
     ctx.fillStyle = '#f0fafa';
     ctx.fillText(scenario?.title ?? '', CANVAS_WIDTH / 2, 150);
 
-    // Rule text
-    const ruleLine = mode === 'impostor' ? scenario?.impostorRuleText : scenario?.ruleText;
-    ctx.font = "17px 'Fredoka One', sans-serif";
-    ctx.fillStyle = accent;
-    ctx.fillText(ruleLine ?? '', CANVAS_WIDTH / 2, 180);
-
-    // Briefing text (wrapped)
-    ctx.font = "15px 'Fredoka One', sans-serif";
-    ctx.fillStyle = '#c8e0e0';
-    const body = mode === 'impostor' ? IMPOSTOR_BODY : scenario?.briefingText ?? '';
-    this.drawWrappedText(ctx, body, CANVAS_WIDTH / 2, 216, 440, 24);
+    // Briefing text (wrapped) — the impostor variant carries its inverted rule
+    ctx.font = "16px 'Fredoka One', sans-serif";
+    ctx.fillStyle = mode === 'impostor' ? '#ffd0d8' : '#c8e0e0';
+    const body = mode === 'impostor'
+      ? `${scenario?.impostorRuleText ?? ''}! ${IMPOSTOR_BODY}`
+      : scenario?.briefingText ?? '';
+    this.drawWrappedText(ctx, body, CANVAS_WIDTH / 2, 196, 440, 26);
 
     // Tricky-ones warm-up cards
     if (this.trickyFacts.length > 0) {
