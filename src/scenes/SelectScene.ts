@@ -3,6 +3,7 @@ import type { SceneManager } from '@/core/SceneManager';
 import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData } from '@/core/progress';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
+import { RoughRenderer } from '@/rendering/RoughRenderer';
 import { drawSpaceBackground, fitText, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
 import { STAGES } from '@/stages';
 import type { MissionParams } from './sceneParams';
@@ -31,6 +32,7 @@ export class SelectScene implements Scene {
   private selectedModeIndex = 0; // 0 = crew, 1 = impostor
   private elapsed = 0;
   private stars: Star[] = makeStars(48);
+  private rr: RoughRenderer | null = null;
 
   constructor(manager: SceneManager) {
     this.manager = manager;
@@ -117,6 +119,9 @@ export class SelectScene implements Scene {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
+    if (!this.rr) {
+      this.rr = new RoughRenderer(ctx);
+    }
     drawSpaceBackground(ctx, this.elapsed, this.stars);
     if (this.step === 'stage') {
       this.drawStageSelect(ctx);
@@ -297,9 +302,14 @@ export class SelectScene implements Scene {
     ctx.fillText(desc1, x + MODE_W / 2, y + 88);
     ctx.fillText(desc2, x + MODE_W / 2, y + 108);
 
+    if (this.rr) {
+      const bob = selected ? Math.sin(this.elapsed * 0.004) * 2 : 0;
+      this.rr.crewmate(x + MODE_W / 2, y + 134 + bob, accent, 3, 0.7);
+    }
+
     ctx.font = "12px 'Fredoka One', sans-serif";
     ctx.fillStyle = progress.completed ? COLOURS.SUCCESS : selected ? '#0a3a4a' : accent;
-    ctx.fillText(missionLabel, x + MODE_W / 2, y + 148);
+    ctx.fillText(missionLabel, x + MODE_W / 2, y + 162);
 
     ctx.restore();
   }
