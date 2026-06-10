@@ -164,6 +164,6 @@ export class AICrewmate {
     const { x, y } = grid.cellScreenPos(this._col, this._row);
     const pulse = this.isDwelling ? 1 + 0.15 * Math.sin(this.dwellElapsed * 0.01) : 1;
     const seed = Math.floor(this.elapsed / 300);
-    rr.crewmate(x + 40, y + 40, this.personality.colour, seed, 0.82 * pulse);
+    rr.crewmate(x + 40, y + 54, this.personality.colour, seed, 0.72 * pulse);
   }
 }

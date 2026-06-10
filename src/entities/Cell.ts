@@ -100,7 +100,10 @@ export class Cell {
       ctx.font = `18px 'Fredoka One', sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this.value.display, x + w / 2, y + h / 2 + 1);
+      // Nudged above centre so entity sprites (anchored at the cell bottom)
+      // never cover the expression — the player must always be able to read
+      // the cell they are standing on.
+      ctx.fillText(this.value.display, x + w / 2, y + h / 2 - 12);
       ctx.restore();
     }
   }

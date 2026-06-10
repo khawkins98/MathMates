@@ -45,6 +45,7 @@ export class Player {
     const { x, y } = grid.cellScreenPos(this._col, this._row);
     const bob = Math.sin(this.bobTimer * 0.004) * 2;
     const seed = Math.floor(this.bobTimer / 250);
-    rr.crewmate(x + 40, y + 40 + bob, colour, seed, 1.08);
+    // Anchored low in the cell so the expression text above stays readable.
+    rr.crewmate(x + 40, y + 52 + bob, colour, seed, 0.9);
   }
 }

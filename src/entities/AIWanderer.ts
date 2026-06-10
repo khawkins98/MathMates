@@ -61,6 +61,6 @@ export class AIWanderer {
   draw(rr: RoughRenderer, grid: Grid, elapsed: number): void {
     const { x, y } = grid.cellScreenPos(this._col, this._row);
     const seed = Math.floor(elapsed / 300);
-    rr.crewmate(x + 40, y + 40, COLOURS.AI_WANDERER, seed, 0.95);
+    rr.crewmate(x + 40, y + 53, COLOURS.AI_WANDERER, seed, 0.85);
   }
 }
