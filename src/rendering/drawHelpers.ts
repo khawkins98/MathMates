@@ -137,6 +137,38 @@ export function drawControlsHintsBar(
   ctx.restore();
 }
 
+/**
+ * Draws single-line text constrained to maxWidth: shrinks the font down to
+ * minSize first, then ellipsizes if it still does not fit.
+ * ctx.font must be set before calling; size/family are passed explicitly so
+ * the font string can be rebuilt while shrinking.
+ */
+export function fitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  size: number,
+  family: string,
+  minSize = size - 2,
+): void {
+  let fontSize = size;
+  ctx.font = `${fontSize}px ${family}`;
+  while (ctx.measureText(text).width > maxWidth && fontSize > minSize) {
+    fontSize -= 0.5;
+    ctx.font = `${fontSize}px ${family}`;
+  }
+  let out = text;
+  if (ctx.measureText(out).width > maxWidth) {
+    while (out.length > 1 && ctx.measureText(`${out}…`).width > maxWidth) {
+      out = out.slice(0, -1).trimEnd();
+    }
+    out = `${out}…`;
+  }
+  ctx.fillText(out, x, y);
+}
+
 export function drawButton(
   ctx: CanvasRenderingContext2D,
   x: number,

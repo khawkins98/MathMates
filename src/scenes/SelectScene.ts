@@ -3,7 +3,7 @@ import type { SceneManager } from '@/core/SceneManager';
 import { getModeProgress, getNextScenarioIndex, getProgress, type ProgressData } from '@/core/progress';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/constants';
 import { COLOURS } from '@/rendering/colours';
-import { drawSpaceBackground, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
+import { drawSpaceBackground, fitText, makeStars, type Star, rrect, drawControlsHintsBar } from '@/rendering/drawHelpers';
 import { STAGES } from '@/stages';
 import type { MissionParams } from './sceneParams';
 
@@ -200,9 +200,9 @@ export class SelectScene implements Scene {
     ctx.textBaseline = 'middle';
     ctx.fillText(stage.title, tX, y + 22);
 
-    ctx.font = "12px 'Fredoka One', sans-serif";
+    const descMaxW = x + TILE_W - 10 - tX;
     ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
-    ctx.fillText(stage.description, tX, y + 40);
+    fitText(ctx, stage.description, tX, y + 40, descMaxW, 12, "'Fredoka One', sans-serif", 10);
 
     if (crewDone || impostorDone) {
       const badges = [crewDone && '✓ Crew', impostorDone && '✓ Impostor'].filter(Boolean).join('  ');
