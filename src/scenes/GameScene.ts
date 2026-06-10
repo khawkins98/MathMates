@@ -147,11 +147,11 @@ export class GameScene implements Scene {
     }
 
     if (this.errorFreeze) {
-      // Teaching moment: hold the action while the child reads why the
-      // answer was wrong. Any input skips it early.
+      // Teaching moment: hold the action until the child says they're ready.
+      // A short grace period stops a buffered keypress from skipping it unread.
       this.errorFreeze.remainingMs -= dt;
       const skip = this.manager.input.shift() || this.manager.input.shiftTap();
-      if (this.errorFreeze.remainingMs <= 0 || skip) {
+      if (skip && this.errorFreeze.remainingMs <= 1600) {
         this.errorFreeze = null;
         this.manager.input.clear();
       }
@@ -726,6 +726,28 @@ export class GameScene implements Scene {
         this.wanderer.draw(this.rr, this.grid, this.elapsedMs);
       }
       if (this.mission?.mode === 'impostor') {
+        // Each crewmate projects a visible danger zone: break a cell inside
+        // it and you are SEEN. The rule is on the board, not in the manual.
+        const wrapped = (a: number, b: number, size: number): number => {
+          const d = Math.abs(a - b);
+          return Math.min(d, size - d);
+        };
+        const pulse = 0.10 + 0.05 * Math.sin(this.elapsedMs * 0.005);
+        ctx.save();
+        for (let col = 0; col < GRID_COLS; col += 1) {
+          for (let row = 0; row < GRID_ROWS; row += 1) {
+            const watched = this.crewmates.some(
+              (c) => c.alive && wrapped(c.col, col, GRID_COLS) + wrapped(c.row, row, GRID_ROWS) <= 2,
+            );
+            if (watched) {
+              const pos = this.grid.cellScreenPos(col, row);
+              ctx.fillStyle = `rgba(232, 48, 48, ${pulse})`;
+              ctx.fillRect(pos.x, pos.y, CELL_SIZE, CELL_SIZE);
+            }
+          }
+        }
+        ctx.restore();
+
         for (const crewmate of this.crewmates) {
           crewmate.draw(this.rr, this.grid);
         }
@@ -740,7 +762,9 @@ export class GameScene implements Scene {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#dde7f6';
     ctx.font = "14px 'Fredoka One', sans-serif";
-    ctx.fillText(this.statusText, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
+    if (!this.paused) {
+      ctx.fillText(this.statusText, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
+    }
     ctx.restore();
 
     this.effects.draw(ctx);

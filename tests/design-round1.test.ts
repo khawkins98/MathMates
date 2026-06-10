@@ -90,7 +90,8 @@ describe('honest distractors', () => {
       for (const v of scenario.generateGrid(seed)) {
         if (!scenario.isCorrect(v)) {
           expect(Math.abs(v.numeric - target)).toBeLessThanOrEqual(4);
-          expect(Math.abs(v.numeric - target)).toBeGreaterThanOrEqual(1);
+          // difficulty 1 keeps off-by-one out of the pool entirely
+          expect(Math.abs(v.numeric - target)).toBeGreaterThanOrEqual(2);
         }
       }
     }

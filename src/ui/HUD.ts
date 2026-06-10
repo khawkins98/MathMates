@@ -120,13 +120,13 @@ export class HUD {
     ctx.fillText(`${this.progressCurrent}/${this.progressTotal}`, CANVAS_WIDTH / 2, barY + barHeight + 10);
 
     // O2 bar (visible par timer): bonus air, never lethal. Pulses when low.
-    const o2W = 70;
+    const o2W = 90;
     const o2X = CANVAS_WIDTH - 10 - o2W;
     const o2Y = 44;
     ctx.font = "10px 'Fredoka One', sans-serif";
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9ab8b8';
-    ctx.fillText('O2', o2X - 5, o2Y + 4);
+    ctx.fillText('AIR', o2X - 5, o2Y + 4);
     ctx.fillStyle = '#1a3030';
     ctx.fillRect(o2X, o2Y, o2W, 7);
     const lowPulse = this.o2 > 0 && this.o2 < 0.25 ? 0.6 + 0.4 * Math.sin(this.elapsed * 0.01) : 1;
