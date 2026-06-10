@@ -115,15 +115,36 @@ export class CompleteScene implements Scene {
     ctx.fillStyle = '#f0fafa';
     ctx.fillText(`${result?.stageTitle ?? ''}  •  ${result?.scenarioTitle ?? ''}`, CANVAS_WIDTH / 2, 140);
 
+    // Badge stars: cleared / accurate / accurate with O2 to spare
+    const earned = result?.badges ?? 1;
+    for (let i = 0; i < 3; i += 1) {
+      const sx = CANVAS_WIDTH / 2 + (i - 1) * 40;
+      const sy = 168;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.fillStyle = i < earned ? COLOURS.GOLD : '#243838';
+      ctx.strokeStyle = '#080c0c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let p = 0; p < 10; p += 1) {
+        const r = p % 2 === 0 ? 14 : 6;
+        const a = (Math.PI * p) / 5 - Math.PI / 2;
+        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.font = "15px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#c8e8e0';
-    ctx.fillText(`Score ${result?.score ?? 0}`, CANVAS_WIDTH / 2, 172);
-    ctx.fillText(`Accuracy ${Math.round((result?.accuracy ?? 0) * 100)}%`, CANVAS_WIDTH / 2, 198);
-    ctx.fillText(`Time ${(result ? result.timeMs / 1000 : 0).toFixed(1)}s`, CANVAS_WIDTH / 2, 224);
-    ctx.fillText(`Lives left ${result?.lives ?? 0}`, CANVAS_WIDTH / 2, 250);
+    ctx.fillText(`Score ${result?.score ?? 0}`, CANVAS_WIDTH / 2, 200);
+    ctx.fillText(`Accuracy ${Math.round((result?.accuracy ?? 0) * 100)}%`, CANVAS_WIDTH / 2, 224);
+    ctx.fillText(`Time ${(result ? result.timeMs / 1000 : 0).toFixed(1)}s`, CANVAS_WIDTH / 2, 248);
     if (result?.bonusAwarded) {
       ctx.fillStyle = COLOURS.GOLD;
-      ctx.fillText('Par time bonus +50!', CANVAS_WIDTH / 2, 276);
+      ctx.fillText('O2 to spare — bonus +50!', CANVAS_WIDTH / 2, 274);
     }
     ctx.restore();
 

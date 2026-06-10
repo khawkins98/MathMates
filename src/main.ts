@@ -8,6 +8,7 @@ import { BriefingScene } from '@/scenes/BriefingScene';
 import { CompleteScene } from '@/scenes/CompleteScene';
 import { GameOverScene } from '@/scenes/GameOverScene';
 import { GameScene } from '@/scenes/GameScene';
+import { LogScene } from '@/scenes/LogScene';
 import { SelectScene } from '@/scenes/SelectScene';
 import { TitleScene } from '@/scenes/TitleScene';
 import { UIKitScene } from '@/scenes/UIKitScene';
@@ -61,6 +62,7 @@ async function startGame(): Promise<void> {
   manager.register('GAME', new GameScene(manager, rr, audio));
   manager.register('COMPLETE', new CompleteScene(manager, rr));
   manager.register('GAME_OVER', new GameOverScene(manager));
+  manager.register('LOG', new LogScene(manager));
 
   if (import.meta.env.DEV) {
     // Dev-only component viewer — backtick on the title screen opens it.

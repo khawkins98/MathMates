@@ -255,11 +255,22 @@ export class SelectScene implements Scene {
     ctx.fillStyle = selected ? '#0a2a2a' : '#3a5050';
     fitText(ctx, stage.description, tX, y + 40, descMaxW, 12, "'Fredoka One', sans-serif", 10);
 
-    if (crewDone || impostorDone) {
-      const badges = [crewDone && '✓ Crew', impostorDone && '✓ Impostor'].filter(Boolean).join('  ');
+    const crewProg = getModeProgress(stage.id, 'crew', this.progress);
+    const impostorProg = getModeProgress(stage.id, 'impostor', this.progress);
+    const starsFor = (prog: typeof crewProg): string => {
+      const total = prog.badges.reduce((a, b) => a + b, 0);
+      const max = stage.scenarios.length * 3;
+      const filled = Math.round((total / Math.max(1, max)) * 3);
+      return '★'.repeat(filled) + '☆'.repeat(3 - filled);
+    };
+    if (crewDone || impostorDone || crewProg.completedScenarios > 0 || impostorProg.completedScenarios > 0) {
       ctx.font = "10px 'Fredoka One', sans-serif";
       ctx.fillStyle = selected ? '#054030' : COLOURS.SUCCESS;
-      ctx.fillText(badges as string, tX, y + 58);
+      ctx.fillText(`Crew ${starsFor(crewProg)}`, tX, y + 58);
+      if (impostorProg.completedScenarios > 0 || impostorDone) {
+        ctx.fillStyle = selected ? '#5a1020' : COLOURS.DANGER;
+        ctx.fillText(`Impostor ${starsFor(impostorProg)}`, tX + 110, y + 58);
+      }
     }
 
     ctx.restore();

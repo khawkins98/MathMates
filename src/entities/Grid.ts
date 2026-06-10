@@ -75,7 +75,9 @@ export class Grid {
       this._consumedCorrect += 1;
       cell.flash('correct', 'consumed');
     } else {
-      cell.flash('error', 'consumed');
+      // The wrong answer stays on the board — a trap the player now understands,
+      // not an accidental reward that thins the distractors.
+      cell.flash('error', 'normal');
     }
     return correct;
   }
@@ -111,6 +113,32 @@ export class Grid {
     }
     this._consumedWrong = Math.max(0, this._consumedWrong - 1);
     cell.setState('normal');
+  }
+
+  /** Correct cells that are still on the board — hunting targets for the wanderer. */
+  getCorrectAvailablePositions(): Array<{ col: number; row: number }> {
+    const out: Array<{ col: number; row: number }> = [];
+    for (const idx of this.correctIndices) {
+      const cell = this.cells[idx];
+      if (cell && cell.state !== 'consumed' && cell.state !== 'correct_flash' && cell.state !== 'error_flash') {
+        out.push({ col: idx % GRID_COLS, row: Math.floor(idx / GRID_COLS) });
+      }
+    }
+    return out;
+  }
+
+  /** The hungry impostor ate a correct answer: it leaves the board AND the quota. */
+  stealCorrectCell(col: number, row: number): boolean {
+    const idx = this.getIndex(col, row);
+    const cell = this.cells[idx];
+    if (idx < 0 || !cell || !this.correctIndices.has(idx) || cell.state === 'consumed') {
+      return false;
+    }
+    cell.clearSus();
+    cell.flash('error', 'consumed');
+    this.correctIndices.delete(idx);
+    this._totalCorrect = Math.max(0, this._totalCorrect - 1);
+    return true;
   }
 
   getBrokenPositions(): Array<{ col: number; row: number }> {

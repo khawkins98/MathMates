@@ -63,7 +63,7 @@ export const multiples3 = makeMultiplesScenario(
   3,
   30,
   2,
-  'Find every multiple of 3. Add the digits — if they sum to 3, 6, or 9, it works!',
+  'Find every multiple of 3. Count up in threes — 3, 6, 9, 12 — and see which numbers you land on!',
 );
 export const multiples4 = makeMultiplesScenario(
   'multiples-4',
@@ -133,7 +133,7 @@ export const mixedTables2 = makeMixedTablesScenario(
   [5, 10],
   40,
   'Find multiples of 2',
-  'Find every multiple of 2 (even number) — multiples of 5 and 10 are lurking as traps!',
+  'Find every multiple of 2 (even number) — odd multiples of 5 are lurking as traps!',
 );
 export const mixedTables3 = makeMixedTablesScenario(
   'mixed-tables-3',

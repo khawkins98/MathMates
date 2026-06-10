@@ -109,11 +109,13 @@ export class GameOverScene implements Scene {
     ctx.font = "15px 'Fredoka One', sans-serif";
     ctx.fillStyle = '#ffd0d8';
     ctx.fillText(`Final score ${this.result?.score ?? 0}`, CANVAS_WIDTH / 2, 186);
-    const failLine = this.result?.mode === 'impostor'
-      ? 'Too many correct answers were eaten.'
-      : this.result?.reason === 'impostor'
-        ? 'The impostor wore you out.'
-        : 'Those sums were tricky — check each one carefully!';
+    const failLine = this.result?.reason === 'caught'
+      ? 'The crew spotted you — sneakier next time!'
+      : this.result?.mode === 'impostor'
+        ? 'Too many correct answers were eaten.'
+        : this.result?.reason === 'impostor'
+          ? 'The impostor wore you out.'
+          : 'Those sums were tricky — check each one carefully!';
     ctx.fillText(failLine, CANVAS_WIDTH / 2, 214);
     ctx.fillText('Try again, or head back to the stage map.', CANVAS_WIDTH / 2, 242);
     ctx.restore();

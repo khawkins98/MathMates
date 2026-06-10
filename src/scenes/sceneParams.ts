@@ -32,6 +32,8 @@ export interface CompleteSceneParams extends MissionParams {
   timeMs: number;
   lives: number;
   bonusAwarded: boolean;
+  /** 1-3: cleared / cleared accurately / cleared accurately with O2 to spare. */
+  badges: number;
   nextMission: MissionParams | null;
 }
 
@@ -42,5 +44,5 @@ export interface GameOverSceneParams {
   score: number;
   mode: GameMode;
   /** What drained the last life — drives the failure message. */
-  reason: 'mistakes' | 'impostor';
+  reason: 'mistakes' | 'impostor' | 'caught';
 }

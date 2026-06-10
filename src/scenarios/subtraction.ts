@@ -18,19 +18,27 @@ function makeSubtractionScenario(
     difficulty,
     parTime: 90,
     generateGrid(seed) {
+      // Difficulty 1 stays within numbers a Year 1 child can hold (≤ 10);
+      // later difficulties open up to 20.
+      const maxMinuend = difficulty === 1 ? Math.max(10, target + 2) : 20;
       const correct = [];
       const wrong = [];
-      for (let a = target; a <= 20; a += 1) {
+      for (let a = target; a <= maxMinuend; a += 1) {
         correct.push({ display: `${a} − ${a - target}`, numeric: target });
       }
-      for (let a = 1; a <= 20; a += 1) {
+      for (let a = 1; a <= maxMinuend; a += 1) {
         for (let b = 0; b < a; b += 1) {
-          if (a - b !== target) {
-            wrong.push({ display: `${a} − ${b}`, numeric: a - b });
+          const diff = a - b;
+          const distance = Math.abs(diff - target);
+          if (distance >= 1 && distance <= 4) {
+            wrong.push({ display: `${a} − ${b}`, numeric: diff });
           }
         }
       }
-      return buildGrid(correct, wrong, 8, seed);
+      // High targets have few unique correct expressions — shrink the quota
+      // instead of filling the board with duplicates.
+      const correctCount = Math.min(8, correct.length);
+      return buildGrid(correct, wrong, correctCount, seed);
     },
     isCorrect(value) {
       return value.numeric === target;
