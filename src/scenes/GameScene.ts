@@ -64,6 +64,7 @@ export class GameScene implements Scene {
   private ended = false;
   private successfulActions = 0;
   private mistakes = 0;
+  private livesLostToImpostor = 0;
   private bonusAwarded = false;
   private statusText = '';
 
@@ -112,6 +113,7 @@ export class GameScene implements Scene {
     this.ended = false;
     this.successfulActions = 0;
     this.mistakes = 0;
+    this.livesLostToImpostor = 0;
     this.bonusAwarded = false;
     this.statusText = params.mode === 'crew' ? 'Eat the correct answers.' : 'Break the wrong answers before they are repaired.';
     this.hud = new HUD();
@@ -281,6 +283,7 @@ export class GameScene implements Scene {
     if (!this.wanderer) {
       return;
     }
+    this.livesLostToImpostor += 1;
     this.loseLife();
     this.audio.errorBuzz();
     this.statusText = 'The impostor bumped into you!';
@@ -409,6 +412,7 @@ export class GameScene implements Scene {
       scenarioTitle: this.scenario.title,
       score: this.score,
       mode: this.mission.mode,
+      reason: this.livesLostToImpostor > this.mistakes ? 'impostor' : 'mistakes',
     };
     this.ended = true;
     this.audio.eliminationSting();

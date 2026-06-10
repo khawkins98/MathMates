@@ -25,4 +25,6 @@ export interface GameOverSceneParams {
   scenarioTitle: string;
   score: number;
   mode: GameMode;
+  /** What drained the last life — drives the failure message. */
+  reason: 'mistakes' | 'impostor';
 }
