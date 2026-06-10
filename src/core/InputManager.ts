@@ -42,6 +42,8 @@ export class InputManager {
         return;
       }
       e.preventDefault();
+      // Capture so pointerup/move still arrive when the finger drifts off the canvas
+      canvas.setPointerCapture(e.pointerId);
       downPos = toLogical(e);
       longFired = false;
       window.clearTimeout(timer);
@@ -51,6 +53,18 @@ export class InputManager {
           longFired = true;
         }
       }, LONG_PRESS_MS);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!downPos) {
+        return;
+      }
+      // A swipe is neither a tap nor a long-press — drifting past the tap
+      // threshold cancels the pending long-press.
+      const at = toLogical(e);
+      if (Math.hypot(at.x - downPos.x, at.y - downPos.y) > TAP_MAX_DRIFT) {
+        window.clearTimeout(timer);
+      }
     });
 
     canvas.addEventListener('pointerup', (e) => {
@@ -66,10 +80,12 @@ export class InputManager {
       downPos = null;
     });
 
-    canvas.addEventListener('pointercancel', () => {
-      window.clearTimeout(timer);
-      downPos = null;
-    });
+    for (const event of ['pointercancel', 'lostpointercapture'] as const) {
+      canvas.addEventListener(event, () => {
+        window.clearTimeout(timer);
+        downPos = null;
+      });
+    }
 
     // Long-press on touch devices opens the context menu by default
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());

@@ -268,9 +268,15 @@ export class GameScene implements Scene {
 
   private cellFromPoint(x: number, y: number): { col: number; row: number } | null {
     const pitch = CELL_SIZE + CELL_GAP;
-    const col = Math.floor((x - GRID_OFFSET_X) / pitch);
-    const row = Math.floor((y - GRID_OFFSET_Y) / pitch);
+    const gx = x - GRID_OFFSET_X;
+    const gy = y - GRID_OFFSET_Y;
+    const col = Math.floor(gx / pitch);
+    const row = Math.floor(gy / pitch);
     if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
+      return null;
+    }
+    // Reject taps that land in the gutter between cells
+    if (gx - col * pitch > CELL_SIZE || gy - row * pitch > CELL_SIZE) {
       return null;
     }
     return { col, row };
