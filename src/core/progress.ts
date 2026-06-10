@@ -39,12 +39,16 @@ function makeDefaultProgress(): ProgressData {
   return { stages };
 }
 
+function finiteOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 function sanitizeModeProgress(value: Partial<ModeProgress> | undefined): ModeProgress {
   return {
-    completedScenarios: Math.max(0, Math.floor(value?.completedScenarios ?? 0)),
+    completedScenarios: Math.max(0, Math.floor(finiteOr(value?.completedScenarios, 0))),
     completed: Boolean(value?.completed),
-    bestScore: Math.max(0, Math.floor(value?.bestScore ?? 0)),
-    bestTimeMs: typeof value?.bestTimeMs === 'number' ? value.bestTimeMs : null,
+    bestScore: Math.max(0, Math.floor(finiteOr(value?.bestScore, 0))),
+    bestTimeMs: typeof value?.bestTimeMs === 'number' && Number.isFinite(value.bestTimeMs) ? value.bestTimeMs : null,
   };
 }
 
@@ -76,7 +80,12 @@ export function getProgress(): ProgressData {
 }
 
 function saveProgress(progress: ProgressData): void {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  } catch {
+    // Storage unavailable (private browsing, quota) — losing the save must
+    // never block the mission-complete transition.
+  }
 }
 
 export function getModeProgress(stageId: string, mode: GameMode, progress = getProgress()): ModeProgress {
