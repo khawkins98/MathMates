@@ -14,7 +14,7 @@ export class TitleScene implements Scene {
     this.manager = manager;
     this.bgImage = new Image();
     this.bgImage.onload = () => { this.bgReady = true; };
-    this.bgImage.src = '/bg-title.jpg';
+    this.bgImage.src = `${import.meta.env.BASE_URL}bg-title.jpg`;
     this.onBacktick = (e: KeyboardEvent) => {
       if (e.code === 'Backquote') {
         e.preventDefault();
