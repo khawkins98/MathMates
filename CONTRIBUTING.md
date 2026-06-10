@@ -56,7 +56,7 @@ No changes to game-engine code are needed for a new scenario.
 
 ## Visual Style
 
-All graphics are drawn with **Rough.js** on Canvas 2D. Do not add bitmap sprites or pixel-art assets.
+All in-game graphics (characters, cells, UI elements) are drawn with **Rough.js** on Canvas 2D. Do not add bitmap sprites or pixel-art assets for game elements. Exception: full-screen background art (e.g. the title screen's `public/bg-title.jpg`) may be a bitmap.
 
 When drawing new UI elements:
 - Use the palette constants from `src/rendering/colours.ts`.
