@@ -480,11 +480,6 @@ export class GameScene implements Scene {
     ctx.fillStyle = '#dde7f6';
     ctx.font = "14px 'Fredoka One', sans-serif";
     ctx.fillText(this.statusText, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 18);
-    if (this.scenario) {
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#7aa8a8';
-      ctx.fillText(`${this.stage?.title ?? ''} • ${this.scenario.title}`, 12, CANVAS_HEIGHT - 18);
-    }
     ctx.restore();
 
     if (this.paused) {
